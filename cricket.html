@@ -1,0 +1,198 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Adarsh Cricket</title>
+
+<style>
+body {
+  margin: 0;
+  background: #10251a;
+  color: white;
+  font-family: Arial;
+  text-align: center;
+}
+h1 { color: #ffd43b; }
+
+.score {
+  background: #222;
+  padding: 12px;
+  font-size: 20px;
+}
+
+.ground {
+  background: #399447;
+  height: 330px;
+  margin: 15px;
+  border: 5px solid white;
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+.pitch {
+  background: #c9a477;
+  width: 90px;
+  height: 250px;
+  position: absolute;
+  left: calc(50% - 45px);
+  top: 40px;
+}
+
+.player {
+  position: absolute;
+  font-size: 42px;
+  z-index: 2;
+}
+.batsman {
+  bottom: 35px;
+  left: calc(50% - 20px);
+}
+.bowler {
+  top: 35px;
+  left: calc(50% - 20px);
+}
+
+.ball {
+  width: 17px;
+  height: 17px;
+  background: red;
+  border-radius: 50%;
+  position: absolute;
+  left: calc(50% - 8px);
+  top: 75px;
+  display: none;
+  z-index: 3;
+}
+
+button {
+  padding: 14px 25px;
+  margin: 8px;
+  border: 0;
+  border-radius: 10px;
+  font-size: 18px;
+  background: #ffd43b;
+  font-weight: bold;
+}
+button:disabled {
+  opacity: 0.5;
+}
+#message {
+  font-size: 20px;
+  min-height: 28px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🏏 Adarsh Cricket</h1>
+
+<div class="score">
+  Runs: <span id="runs">0</span> |
+  Wickets: <span id="wickets">0</span>
+  <br>
+  Overs: <span id="overs">0.0</span>
+</div>
+
+<div class="ground">
+  <div class="pitch"></div>
+  <div class="player bowler">🏃</div>
+  <div class="player batsman">🏏</div>
+  <div class="ball" id="ball"></div>
+</div>
+
+<p id="message">Start Match दबाओ!</p>
+
+<button onclick="startMatch()">Start Match</button>
+<button id="hitBtn" onclick="hitBall()" disabled>🏏 HIT!</button>
+<button onclick="location.href='index.html'">🏠 Home</button>
+
+<script>
+let runs = 0;
+let wickets = 0;
+let balls = 0;
+let moving = false;
+let ballTimer;
+let ballPosition = 75;
+
+const ball = document.getElementById("ball");
+const hitBtn = document.getElementById("hitBtn");
+const message = document.getElementById("message");
+
+function updateScore() {
+  document.getElementById("runs").innerText = runs;
+  document.getElementById("wickets").innerText = wickets;
+  document.getElementById("overs").innerText =
+    Math.floor(balls / 6) + "." + (balls % 6);
+}
+
+function startMatch() {
+  clearInterval(ballTimer);
+  runs = 0;
+  wickets = 0;
+  balls = 0;
+  updateScore();
+  message.innerText = "Ball ka wait karo!";
+  hitBtn.disabled = true;
+  nextBall();
+}
+
+function nextBall() {
+  if (wickets >= 2 || balls >= 12) {
+    message.innerText = "🏆 Match Over! Total Score: " + runs;
+    hitBtn.disabled = true;
+    return;
+  }
+
+  moving = true;
+  ballPosition = 75;
+  ball.style.top = ballPosition + "px";
+  ball.style.display = "block";
+  hitBtn.disabled = false;
+
+  ballTimer = setInterval(() => {
+    ballPosition += 5;
+    ball.style.top = ballPosition + "px";
+
+    if (ballPosition >= 260) {
+      clearInterval(ballTimer);
+      moving = false;
+      ball.style.display = "none";
+      hitBtn.disabled = true;
+      balls++;
+      message.innerText = "😮 Miss! Dot ball.";
+      updateScore();
+      setTimeout(nextBall, 900);
+    }
+  }, 40);
+}
+
+function hitBall() {
+  if (!moving) return;
+
+  clearInterval(ballTimer);
+  moving = false;
+  hitBtn.disabled = true;
+  ball.style.display = "none";
+
+  let result = Math.floor(Math.random() * 6);
+
+  if (result === 0) {
+    wickets++;
+    message.innerText = "❌ OUT!";
+  } else {
+    let score = [0, 1, 2, 3, 4, 6][result];
+    runs += score;
+    message.innerText = "🏏 " + score + " RUNS!";
+  }
+
+  balls++;
+  updateScore();
+  setTimeout(nextBall, 1000);
+}
+</script>
+
+</body>
+</html>
