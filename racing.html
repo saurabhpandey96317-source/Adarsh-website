@@ -3,7 +3,7 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Adarsh Car Racing 2.0</title>
+<title>Adarsh Car Racing 3.0</title>
 
 <style>
 body {
@@ -13,15 +13,14 @@ body {
   text-align: center;
   font-family: Arial;
 }
-
 h2 { color: yellow; }
 
 .stats {
   display: flex;
   justify-content: center;
-  gap: 25px;
-  font-size: 18px;
+  gap: 15px;
   flex-wrap: wrap;
+  font-size: 16px;
 }
 
 #game {
@@ -37,7 +36,7 @@ h2 { color: yellow; }
 
 .line {
   position: absolute;
-  width: 8px;
+  width: 7px;
   height: 60px;
   background: white;
   left: 146px;
@@ -48,6 +47,7 @@ h2 { color: yellow; }
   bottom: 15px;
   left: 125px;
   font-size: 40px;
+  z-index: 2;
 }
 
 .enemy {
@@ -57,32 +57,57 @@ h2 { color: yellow; }
 }
 
 button {
-  padding: 13px 20px;
-  margin: 6px;
-  font-size: 17px;
+  padding: 12px 17px;
+  margin: 5px;
+  font-size: 16px;
   border: none;
   border-radius: 10px;
   background: orange;
   font-weight: bold;
 }
 
+#nitro {
+  background: #087ff5;
+  color: white;
+}
+
+#soundBtn {
+  background: #159447;
+  color: white;
+}
+
 #message { color: yellow; }
 
-#soundBtn { background: #159447; color: white; }
+#cars button {
+  background: #333;
+  color: white;
+  border: 2px solid orange;
+}
 
-#lives { color: #ff5252; }
-
+#cars button.selected {
+  background: orange;
+  color: black;
+}
 </style>
 </head>
 
 <body>
 
-<h2>🏎️ ADARSH CAR RACING 2.0</h2>
+<h2>🏎️ ADARSH CAR RACING 3.0</h2>
 
 <div class="stats">
   <span>🏆 Score: <b id="score">0</b></span>
   <span>🥇 Best: <b id="best">0</b></span>
-  <span>❤️ Lives: <b id="lives">❤️❤️❤️</b></span>
+  <span>❤️ <b id="lives">3</b></span>
+</div>
+
+<h3>🚘 Choose Your Car</h3>
+
+<div id="cars">
+  <button class="selected" onclick="chooseCar('🏎️',this)">🏎️</button>
+  <button onclick="chooseCar('🚕',this)">🚕</button>
+  <button onclick="chooseCar('🚓',this)">🚓</button>
+  <button onclick="chooseCar('🚑',this)">🚑</button>
 </div>
 
 <br>
@@ -94,23 +119,25 @@ button {
   <div id="player">🏎️</div>
 </div>
 
-<h3 id="message">Race शुरू करो!</h3>
+<h3 id="message">अपनी कार चुनो और Race शुरू करो!</h3>
 
 <button onclick="move(-1)">⬅️ Left</button>
 <button onclick="move(1)">Right ➡️</button>
 <br>
 
 <button onclick="startGame()">▶️ Start / Restart</button>
+<button id="nitro"
+onpointerdown="useNitro()"
+onpointerup="stopNitro()"
+onpointerleave="stopNitro()"
+onpointercancel="stopNitro()">⚡ NITRO</button>
+
+<br>
 <button id="soundBtn" onclick="toggleSound()">🔊 Sound ON</button>
 
 <script>
 const player = document.getElementById("player");
 const game = document.getElementById("game");
-const scoreBox = document.getElementById("score");
-const bestBox = document.getElementById("best");
-const livesBox = document.getElementById("lives");
-const message = document.getElementById("message");
-const soundBtn = document.getElementById("soundBtn");
 
 let lane = 1;
 let score = 0;
@@ -121,19 +148,38 @@ let speed = 4;
 let timer;
 let enemyTimer;
 
-let best = 0;
+let car = "🏎️";
+let nitroOn = false;
+let nitroTimer = 0;
+let soundOn = true;
 
+let best = 0;
 try {
   best = Number(localStorage.getItem("adarshBest")) || 0;
 } catch(e) {}
 
-bestBox.innerText = best;
+document.getElementById("best").innerText = best;
 
-// SOUND SYSTEM
+// CAR SELECT
+function chooseCar(value, button) {
+  if (running) {
+    message.innerText = "पहले Race खत्म करो!";
+    return;
+  }
+
+  car = value;
+  player.innerText = car;
+
+  document.querySelectorAll("#cars button")
+    .forEach(b => b.classList.remove("selected"));
+
+  button.classList.add("selected");
+}
+
+// SOUND
 let audio = null;
 let engineOsc = null;
 let engineGain = null;
-let soundOn = true;
 
 function initAudio() {
   if (!soundOn) return false;
@@ -142,6 +188,7 @@ function initAudio() {
     if (!audio) {
       const AudioClass =
         window.AudioContext || window.webkitAudioContext;
+
       if (!AudioClass) return false;
       audio = new AudioClass();
     }
@@ -201,19 +248,11 @@ function stopEngine() {
   }
 }
 
-function crashSound() {
-  playSound(90, 0.5, 0.2, "sawtooth");
-  setTimeout(() => {
-    playSound(45, 0.3, 0.15, "square");
-  }, 100);
-}
-
 function toggleSound() {
   soundOn = !soundOn;
 
-  soundBtn.innerText = soundOn
-    ? "🔊 Sound ON"
-    : "🔇 Sound OFF";
+  document.getElementById("soundBtn").innerText =
+    soundOn ? "🔊 Sound ON" : "🔇 Sound OFF";
 
   if (soundOn && running) startEngine();
   if (!soundOn) stopEngine();
@@ -227,7 +266,6 @@ function move(direction) {
   lane = Math.max(0, Math.min(2, lane));
 
   player.style.left = (25 + lane * 100) + "px";
-
   playSound(300, 0.07, 0.04);
 }
 
@@ -236,7 +274,7 @@ document.addEventListener("keydown", e => {
   if (e.key === "ArrowRight") move(1);
 });
 
-// START GAME
+// START
 function startGame() {
   clearInterval(timer);
   clearInterval(enemyTimer);
@@ -249,10 +287,14 @@ function startGame() {
   lives = 3;
   speed = 4;
   running = true;
+  nitroOn = false;
 
+  player.innerText = car;
   player.style.left = "125px";
-  scoreBox.innerText = score;
-  livesBox.innerText = "❤️❤️❤️";
+
+  document.getElementById("score").innerText = 0;
+  document.getElementById("lives").innerText = 3;
+
   message.innerText = "🏁 Race शुरू!";
 
   startEngine();
@@ -267,7 +309,9 @@ function createEnemy() {
 
   const enemy = document.createElement("div");
   enemy.className = "enemy";
-  enemy.innerText = "🚙";
+
+  const cars = ["🚙", "🚕", "🚗"];
+  enemy.innerText = cars[Math.floor(Math.random() * cars.length)];
 
   const enemyLane = Math.floor(Math.random() * 3);
   enemy.dataset.lane = enemyLane;
@@ -277,11 +321,48 @@ function createEnemy() {
   enemies.push(enemy);
 }
 
+// NITRO
+function useNitro() {
+  if (!running || nitroOn) return;
+
+  nitroOn = true;
+  nitroTimer = 0;
+
+  playSound(850, 0.4, 0.12, "sawtooth");
+  message.innerText = "⚡ NITRO BOOST!";
+
+  if (engineOsc && soundOn) {
+    engineOsc.frequency.value = 120;
+  }
+}
+
+function stopNitro() {
+  nitroOn = false;
+
+  if (engineOsc && soundOn) {
+    engineOsc.frequency.value = 65;
+  }
+}
+
 // GAME LOOP
 function updateGame() {
+  let currentSpeed = speed;
+
+  if (nitroOn) {
+    currentSpeed = speed * 2;
+    nitroTimer++;
+
+    if (nitroTimer > 100) {
+      nitroOn = false;
+      if (engineOsc && soundOn) {
+        engineOsc.frequency.value = 65;
+      }
+    }
+  }
+
   for (let i = enemies.length - 1; i >= 0; i--) {
     const enemy = enemies[i];
-    const y = enemy.offsetTop + speed;
+    const y = enemy.offsetTop + currentSpeed;
 
     enemy.style.top = y + "px";
 
@@ -295,6 +376,7 @@ function updateGame() {
       enemy.remove();
       enemies.splice(i, 1);
       loseLife();
+
       if (!running) return;
       continue;
     }
@@ -304,13 +386,13 @@ function updateGame() {
       enemies.splice(i, 1);
 
       score++;
-      scoreBox.innerText = score;
+      document.getElementById("score").innerText = score;
 
       playSound(650, 0.12, 0.07);
 
       if (score > best) {
         best = score;
-        bestBox.innerText = best;
+        document.getElementById("best").innerText = best;
 
         try {
           localStorage.setItem("adarshBest", best);
@@ -322,14 +404,12 @@ function updateGame() {
   }
 }
 
-// LIVES
+// LIFE
 function loseLife() {
   lives--;
+  document.getElementById("lives").innerText = lives;
 
-  livesBox.innerText = "❤️".repeat(lives) +
-    "🖤".repeat(3 - lives);
-
-  crashSound();
+  playSound(90, 0.5, 0.2, "sawtooth");
 
   if (lives <= 0) {
     endGame();
@@ -341,6 +421,7 @@ function loseLife() {
 // GAME OVER
 function endGame() {
   running = false;
+  nitroOn = false;
 
   clearInterval(timer);
   clearInterval(enemyTimer);
