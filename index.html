@@ -1,5 +1,4 @@
 
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -86,8 +85,26 @@ header p {
   background: #1876c9;
 }
 
+#musicBtn {
+  position: fixed;
+  right: 15px;
+  bottom: 15px;
+  padding: 14px 18px;
+  border: 2px solid white;
+  border-radius: 12px;
+  background: #ffbf00;
+  color: #222;
+  font-size: 15px;
+  font-weight: bold;
+  z-index: 999;
+}
+
+#musicBtn:active {
+  transform: scale(0.95);
+}
+
 footer {
-  padding: 25px 10px;
+  padding: 25px 10px 85px;
   color: #c8d9dd;
   font-size: 13px;
 }
@@ -134,6 +151,125 @@ footer {
   <p>© 2026 Adarsh Games</p>
   <p>Made with ❤️</p>
 </footer>
+
+<button id="musicBtn">🎵 Music: OFF</button>
+
+<script>
+let audio = null;
+let musicTimer = null;
+let musicPlaying = false;
+
+// Adventure melody
+const melody = [
+  392, 440, 523, 587,
+  523, 440, 392, 330,
+  392, 523, 587, 659,
+  587, 523, 440, 392
+];
+
+// Bass notes
+const bass = [
+  131, 131, 147, 147,
+  110, 110, 131, 131,
+  98, 98, 131, 131,
+  110, 110, 147, 147
+];
+
+const beat = 0.32;
+
+function playNote(freq, start, duration, volume, type) {
+  const oscillator = audio.createOscillator();
+  const gain = audio.createGain();
+
+  oscillator.type = type;
+  oscillator.frequency.setValueAtTime(freq, start);
+
+  gain.gain.setValueAtTime(0.001, start);
+  gain.gain.exponentialRampToValueAtTime(
+    volume, start + 0.04
+  );
+  gain.gain.exponentialRampToValueAtTime(
+    0.001, start + duration
+  );
+
+  oscillator.connect(gain);
+  gain.connect(audio.destination);
+
+  oscillator.start(start);
+  oscillator.stop(start + duration + 0.02);
+}
+
+function playAdventureMusic() {
+  if (!musicPlaying || !audio) return;
+
+  const start = audio.currentTime + 0.05;
+
+  for (let i = 0; i < melody.length; i++) {
+    const time = start + i * beat;
+
+    // Main adventure melody
+    playNote(
+      melody[i],
+      time,
+      0.26,
+      0.045,
+      "triangle"
+    );
+
+    // Low background bass
+    if (i % 2 === 0) {
+      playNote(
+        bass[i],
+        time,
+        0.48,
+        0.035,
+        "sine"
+      );
+    }
+  }
+
+  // Repeat the music
+  musicTimer = setTimeout(
+    playAdventureMusic,
+    melody.length * beat * 1000
+  );
+}
+
+const musicBtn = document.getElementById("musicBtn");
+
+musicBtn.addEventListener("click", async function() {
+  if (!musicPlaying) {
+    try {
+      audio = new (
+        window.AudioContext ||
+        window.webkitAudioContext
+      )();
+
+      await audio.resume();
+
+      musicPlaying = true;
+      musicBtn.innerText = "🎵 Music: ON";
+      playAdventureMusic();
+
+    } catch (error) {
+      musicPlaying = false;
+      musicBtn.innerText = "Music unavailable";
+    }
+
+  } else {
+    musicPlaying = false;
+
+    clearTimeout(musicTimer);
+
+    if (audio) {
+      await audio.close();
+      audio = null;
+    }
+
+    musicBtn.innerText = "🎵 Music: OFF";
+  }
+});
+</script>
 
 </body>
 </html>
