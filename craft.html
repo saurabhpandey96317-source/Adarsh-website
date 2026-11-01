@@ -1,0 +1,468 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Adarsh Craft</title>
+
+<style>
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  font-family: Arial, sans-serif;
+  background: #87ceeb;
+  touch-action: none;
+}
+
+#game {
+  width: 100vw;
+  height: 100vh;
+  display: block;
+}
+
+#top {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  justify-content: space-between;
+  color: white;
+  font-weight: bold;
+  text-shadow: 1px 2px 3px black;
+  pointer-events: none;
+}
+
+#crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%,-50%);
+  color: white;
+  font-size: 25px;
+  text-shadow: 1px 1px 3px black;
+  pointer-events: none;
+}
+
+#controls {
+  position: absolute;
+  bottom: 20px;
+  left: 15px;
+  right: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+}
+
+#joystick {
+  width: 115px;
+  height: 115px;
+  border-radius: 50%;
+  background: #ffffff44;
+  border: 2px solid #ffffff99;
+  position: relative;
+  touch-action: none;
+}
+
+#stick {
+  width: 45px;
+  height: 45px;
+  background: #ffffffbb;
+  border-radius: 50%;
+  position: absolute;
+  top: 33px;
+  left: 33px;
+}
+
+.buttons {
+  display: grid;
+  grid-template-columns: 65px 65px;
+  gap: 10px;
+}
+
+button {
+  border: 2px solid #ffffff88;
+  border-radius: 12px;
+  background: #333333bb;
+  color: white;
+  font-weight: bold;
+  padding: 13px 5px;
+  font-size: 13px;
+  touch-action: none;
+}
+
+#jump {
+  grid-column: span 2;
+  background: #2196f3dd;
+}
+
+#inventory {
+  position: absolute;
+  bottom: 155px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+}
+
+.slot {
+  width: 42px;
+  height: 42px;
+  border: 2px solid white;
+  border-radius: 6px;
+  color: white;
+  background: #333b;
+  font-size: 11px;
+}
+
+.slot.selected {
+  border: 3px solid yellow;
+}
+
+#message {
+  position: absolute;
+  top: 55px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: white;
+  text-shadow: 1px 2px 3px black;
+  font-size: 13px;
+  pointer-events: none;
+}
+</style>
+</head>
+
+<body>
+
+<div id="top">
+  <span>⛏ ADARSH CRAFT</span>
+  <span>CREATIVE MODE</span>
+</div>
+
+<div id="message">Swipe to look around</div>
+<div id="crosshair">+</div>
+
+<div id="inventory">
+  <button class="slot selected" data-type="grass">Grass</button>
+  <button class="slot" data-type="dirt">Dirt</button>
+  <button class="slot" data-type="stone">Stone</button>
+  <button class="slot" data-type="wood">Wood</button>
+</div>
+
+<div id="controls">
+  <div id="joystick">
+    <div id="stick"></div>
+  </div>
+
+  <div class="buttons">
+    <button id="break">BREAK</button>
+    <button id="place">PLACE</button>
+    <button id="jump">JUMP</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+
+<script>
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb);
+scene.fog = new THREE.Fog(0x87ceeb, 12, 28);
+
+const camera = new THREE.PerspectiveCamera(
+  75,
+  innerWidth / innerHeight,
+  0.1,
+  60
+);
+
+camera.position.set(0, 1.65, 5);
+camera.rotation.order = "YXZ";
+
+const renderer = new THREE.WebGLRenderer({
+  antialias: false,
+  powerPreference: "low-power"
+});
+
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1));
+document.body.prepend(renderer.domElement);
+renderer.domElement.id = "game";
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x667755, 2));
+
+const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+sun.position.set(5, 10, 5);
+scene.add(sun);
+
+const geometry = new THREE.BoxGeometry(1, 1, 1);
+
+const materials = {
+  grass: new THREE.MeshLambertMaterial({ color: 0x55aa33 }),
+  dirt: new THREE.MeshLambertMaterial({ color: 0x87552f }),
+  stone: new THREE.MeshLambertMaterial({ color: 0x888888 }),
+  wood: new THREE.MeshLambertMaterial({ color: 0x80502a }),
+  leaves: new THREE.MeshLambertMaterial({ color: 0x23852b })
+};
+
+const blocks = new Map();
+const blockMeshes = [];
+
+function key(x, y, z) {
+  return `${x},${y},${z}`;
+}
+
+function addBlock(x, y, z, type) {
+  const k = key(x, y, z);
+  if (blocks.has(k)) return;
+
+  const mesh = new THREE.Mesh(geometry, materials[type]);
+  mesh.position.set(x, y, z);
+  mesh.userData = { x, y, z, type };
+
+  scene.add(mesh);
+  blocks.set(k, mesh);
+  blockMeshes.push(mesh);
+}
+
+function removeBlock(mesh) {
+  if (!mesh) return;
+
+  const p = mesh.userData;
+  blocks.delete(key(p.x, p.y, p.z));
+  scene.remove(mesh);
+
+  const index = blockMeshes.indexOf(mesh);
+  if (index !== -1) blockMeshes.splice(index, 1);
+}
+
+// Small world: 15 x 15
+for (let x = -7; x <= 7; x++) {
+  for (let z = -7; z <= 7; z++) {
+    addBlock(x, 0, z, "grass");
+  }
+}
+
+// Trees
+function makeTree(x, z) {
+  for (let y = 1; y <= 3; y++) {
+    addBlock(x, y, z, "wood");
+  }
+
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dz = -1; dz <= 1; dz++) {
+      for (let y = 3; y <= 4; y++) {
+        addBlock(x + dx, y, z + dz, "leaves");
+      }
+    }
+  }
+}
+
+makeTree(-4, -3);
+makeTree(4, -4);
+makeTree(4, 3);
+
+// Player
+let yaw = 0;
+let pitch = 0;
+let moveX = 0;
+let moveZ = 0;
+let velocityY = 0;
+let grounded = true;
+let selectedBlock = "grass";
+
+const raycaster = new THREE.Raycaster();
+raycaster.far = 5;
+
+function getTarget() {
+  raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+  const hits = raycaster.intersectObjects(blockMeshes, false);
+  return hits.length ? hits[0] : null;
+}
+
+function breakBlock() {
+  const hit = getTarget();
+  if (hit) removeBlock(hit.object);
+}
+
+function placeBlock() {
+  const hit = getTarget();
+  if (!hit) return;
+
+  const p = hit.object.position;
+  const n = hit.face.normal;
+
+  const x = Math.round(p.x + n.x);
+  const y = Math.round(p.y + n.y);
+  const z = Math.round(p.z + n.z);
+
+  if (Math.abs(x - camera.position.x) < 1 &&
+      Math.abs(z - camera.position.z) < 1 &&
+      y >= 0 && y <= 2) return;
+
+  addBlock(x, y, z, selectedBlock);
+}
+
+// Inventory
+document.querySelectorAll(".slot").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".slot").forEach(b =>
+      b.classList.remove("selected")
+    );
+
+    btn.classList.add("selected");
+    selectedBlock = btn.dataset.type;
+  });
+});
+
+document.getElementById("break").addEventListener("click", breakBlock);
+document.getElementById("place").addEventListener("click", placeBlock);
+
+document.getElementById("jump").addEventListener("click", () => {
+  if (grounded) {
+    velocityY = 0.12;
+    grounded = false;
+  }
+});
+
+// Joystick
+const joystick = document.getElementById("joystick");
+const stick = document.getElementById("stick");
+
+let joyPointer = null;
+
+joystick.addEventListener("pointerdown", e => {
+  joyPointer = e.pointerId;
+  joystick.setPointerCapture(e.pointerId);
+  updateJoy(e);
+});
+
+joystick.addEventListener("pointermove", e => {
+  if (e.pointerId === joyPointer) updateJoy(e);
+});
+
+function updateJoy(e) {
+  const r = joystick.getBoundingClientRect();
+  let x = e.clientX - (r.left + r.width / 2);
+  let y = e.clientY - (r.top + r.height / 2);
+
+  const length = Math.hypot(x, y);
+  if (length > 35) {
+    x = x / length * 35;
+    y = y / length * 35;
+  }
+
+  stick.style.transform = `translate(${x}px, ${y}px)`;
+
+  moveX = x / 35;
+  moveZ = y / 35;
+}
+
+function stopJoy(e) {
+  if (e.pointerId !== joyPointer) return;
+  joyPointer = null;
+  moveX = 0;
+  moveZ = 0;
+  stick.style.transform = "translate(0px, 0px)";
+}
+
+joystick.addEventListener("pointerup", stopJoy);
+joystick.addEventListener("pointercancel", stopJoy);
+
+// Swipe to look
+let lookPointer = null;
+let lastX = 0;
+let lastY = 0;
+
+renderer.domElement.addEventListener("pointerdown", e => {
+  lookPointer = e.pointerId;
+  lastX = e.clientX;
+  lastY = e.clientY;
+  renderer.domElement.setPointerCapture(e.pointerId);
+});
+
+renderer.domElement.addEventListener("pointermove", e => {
+  if (e.pointerId !== lookPointer) return;
+
+  const dx = e.clientX - lastX;
+  const dy = e.clientY - lastY;
+
+  yaw -= dx * 0.004;
+  pitch -= dy * 0.004;
+
+  pitch = Math.max(-1.4, Math.min(1.4, pitch));
+
+  camera.rotation.set(pitch, yaw, 0);
+
+  lastX = e.clientX;
+  lastY = e.clientY;
+});
+
+function stopLook(e) {
+  if (e.pointerId === lookPointer) lookPointer = null;
+}
+
+renderer.domElement.addEventListener("pointerup", stopLook);
+renderer.domElement.addEventListener("pointercancel", stopLook);
+
+// Keyboard support
+const keys = {};
+
+addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
+addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
+
+let lastTime = 0;
+
+function animate(time) {
+  requestAnimationFrame(animate);
+
+  // Limit rendering to around 30 FPS
+  if (time - lastTime < 1000 / 30) return;
+  lastTime = time;
+
+  const forward = -moveZ +
+    (keys["w"] ? 1 : 0) -
+    (keys["s"] ? 1 : 0);
+
+  const side = moveX +
+    (keys["d"] ? 1 : 0) -
+    (keys["a"] ? 1 : 0);
+
+  const speed = 0.075;
+
+  camera.position.x +=
+    (Math.sin(yaw) * forward + Math.cos(yaw) * side) * speed;
+
+  camera.position.z +=
+    (-Math.cos(yaw) * forward + Math.sin(yaw) * side) * speed;
+
+  // Simple jump and gravity
+  velocityY -= 0.006;
+  camera.position.y += velocityY;
+
+  if (camera.position.y <= 1.65) {
+    camera.position.y = 1.65;
+    velocityY = 0;
+    grounded = true;
+  }
+
+  renderer.render(scene, camera);
+}
+
+requestAnimationFrame(animate);
+
+addEventListener("resize", () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 1));
+});
+</script>
+
+</body>
+</html>
