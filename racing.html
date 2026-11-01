@@ -3,19 +3,25 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Adarsh Car Racing</title>
+<title>Adarsh Car Racing 2.0</title>
 
 <style>
 body {
   margin: 0;
-  background: #222;
+  background: #151515;
   color: white;
   text-align: center;
   font-family: Arial;
 }
 
-h2 {
-  color: yellow;
+h2 { color: yellow; }
+
+.stats {
+  display: flex;
+  justify-content: center;
+  gap: 25px;
+  font-size: 18px;
+  flex-wrap: wrap;
 }
 
 #game {
@@ -51,7 +57,7 @@ h2 {
 }
 
 button {
-  padding: 14px 20px;
+  padding: 13px 20px;
   margin: 6px;
   font-size: 17px;
   border: none;
@@ -60,22 +66,26 @@ button {
   font-weight: bold;
 }
 
-#message {
-  color: yellow;
-}
+#message { color: yellow; }
 
-#soundBtn {
-  background: #20a65a;
-  color: white;
-}
+#soundBtn { background: #159447; color: white; }
+
+#lives { color: #ff5252; }
+
 </style>
 </head>
 
 <body>
 
-<h2>🏎️ Adarsh Car Racing</h2>
+<h2>🏎️ ADARSH CAR RACING 2.0</h2>
 
-<h3>Score: <span id="score">0</span></h3>
+<div class="stats">
+  <span>🏆 Score: <b id="score">0</b></span>
+  <span>🥇 Best: <b id="best">0</b></span>
+  <span>❤️ Lives: <b id="lives">❤️❤️❤️</b></span>
+</div>
+
+<br>
 
 <div id="game">
   <div class="line" style="top:0px"></div>
@@ -90,81 +100,80 @@ button {
 <button onclick="move(1)">Right ➡️</button>
 <br>
 
-<button onclick="startGame()">Start / Restart</button>
+<button onclick="startGame()">▶️ Start / Restart</button>
 <button id="soundBtn" onclick="toggleSound()">🔊 Sound ON</button>
 
 <script>
-let player = document.getElementById("player");
-let game = document.getElementById("game");
-let scoreBox = document.getElementById("score");
-let message = document.getElementById("message");
-let soundBtn = document.getElementById("soundBtn");
+const player = document.getElementById("player");
+const game = document.getElementById("game");
+const scoreBox = document.getElementById("score");
+const bestBox = document.getElementById("best");
+const livesBox = document.getElementById("lives");
+const message = document.getElementById("message");
+const soundBtn = document.getElementById("soundBtn");
 
 let lane = 1;
 let score = 0;
+let lives = 3;
 let running = false;
 let enemies = [];
 let speed = 4;
 let timer;
-let lineTimer;
+let enemyTimer;
 
+let best = 0;
+
+try {
+  best = Number(localStorage.getItem("adarshBest")) || 0;
+} catch(e) {}
+
+bestBox.innerText = best;
+
+// SOUND SYSTEM
 let audio = null;
 let engineOsc = null;
 let engineGain = null;
 let soundOn = true;
 
-// Start audio after a user action
 function initAudio() {
   if (!soundOn) return false;
 
-  if (!audio) {
-    const AudioClass =
-      window.AudioContext || window.webkitAudioContext;
-
-    if (!AudioClass) {
-      message.innerText = "Audio supported नहीं है";
-      return false;
+  try {
+    if (!audio) {
+      const AudioClass =
+        window.AudioContext || window.webkitAudioContext;
+      if (!AudioClass) return false;
+      audio = new AudioClass();
     }
 
-    audio = new AudioClass();
+    if (audio.state === "suspended") audio.resume();
+    return true;
+  } catch(e) {
+    return false;
   }
-
-  if (audio.state === "suspended") {
-    audio.resume();
-  }
-
-  return true;
 }
 
-// Play a short sound
 function playSound(freq, duration, volume, type) {
   if (!soundOn || !initAudio()) return;
 
-  const oscillator = audio.createOscillator();
+  const osc = audio.createOscillator();
   const gain = audio.createGain();
 
-  oscillator.type = type || "sine";
-  oscillator.frequency.setValueAtTime(
-    freq, audio.currentTime
-  );
+  osc.type = type || "sine";
+  osc.frequency.value = freq;
 
-  gain.gain.setValueAtTime(
-    volume, audio.currentTime
-  );
-
+  gain.gain.setValueAtTime(volume, audio.currentTime);
   gain.gain.exponentialRampToValueAtTime(
-    0.001,
-    audio.currentTime + duration
+    0.001, audio.currentTime + duration
   );
 
-  oscillator.connect(gain);
+  osc.connect(gain);
   gain.connect(audio.destination);
 
-  oscillator.start();
-  oscillator.stop(audio.currentTime + duration);
+  osc.start();
+  osc.stop(audio.currentTime + duration);
 }
 
-// Engine sound
 function startEngine() {
   if (!soundOn || !initAudio()) return;
 
@@ -179,107 +188,88 @@ function startEngine() {
 
   engineOsc.connect(engineGain);
   engineGain.connect(audio.destination);
-
   engineOsc.start();
 }
 
 function stopEngine() {
   if (engineOsc) {
-    try {
-      engineOsc.stop();
-    } catch (e) {}
-
+    try { engineOsc.stop(); } catch(e) {}
     engineOsc.disconnect();
     engineGain.disconnect();
-
     engineOsc = null;
     engineGain = null;
   }
 }
 
-// Crash sound
 function crashSound() {
-  if (!soundOn || !initAudio()) return;
-
-  playSound(90, 0.5, 0.25, "sawtooth");
-
+  playSound(90, 0.5, 0.2, "sawtooth");
   setTimeout(() => {
-    playSound(45, 0.35, 0.2, "square");
+    playSound(45, 0.3, 0.15, "square");
   }, 100);
-}
-
-// Score sound
-function scoreSound() {
-  playSound(650, 0.12, 0.08, "sine");
 }
 
 function toggleSound() {
   soundOn = !soundOn;
 
-  if (soundOn) {
-    soundBtn.innerText = "🔊 Sound ON";
+  soundBtn.innerText = soundOn
+    ? "🔊 Sound ON"
+    : "🔇 Sound OFF";
 
-    if (running) startEngine();
-    else initAudio();
-
-  } else {
-    soundBtn.innerText = "🔇 Sound OFF";
-    stopEngine();
-  }
+  if (soundOn && running) startEngine();
+  if (!soundOn) stopEngine();
 }
 
+// MOVEMENT
 function move(direction) {
   if (!running) return;
 
-  const oldLane = lane;
-
   lane += direction;
+  lane = Math.max(0, Math.min(2, lane));
 
-  if (lane < 0) lane = 0;
-  if (lane > 2) lane = 2;
+  player.style.left = (25 + lane * 100) + "px";
 
-  if (oldLane !== lane) {
-    player.style.left = (25 + lane * 100) + "px";
-    playSound(300, 0.07, 0.04, "sine");
-  }
+  playSound(300, 0.07, 0.04);
 }
 
-document.addEventListener("keydown", function(e) {
+document.addEventListener("keydown", e => {
   if (e.key === "ArrowLeft") move(-1);
   if (e.key === "ArrowRight") move(1);
 });
 
+// START GAME
 function startGame() {
   clearInterval(timer);
-  clearInterval(lineTimer);
+  clearInterval(enemyTimer);
 
   enemies.forEach(e => e.remove());
   enemies = [];
 
   lane = 1;
   score = 0;
+  lives = 3;
   speed = 4;
   running = true;
 
   player.style.left = "125px";
   scoreBox.innerText = score;
+  livesBox.innerText = "❤️❤️❤️";
   message.innerText = "🏁 Race शुरू!";
 
   startEngine();
 
   timer = setInterval(updateGame, 30);
-  lineTimer = setInterval(createEnemy, 1100);
+  enemyTimer = setInterval(createEnemy, 1100);
 }
 
+// ENEMIES
 function createEnemy() {
   if (!running) return;
 
-  let enemy = document.createElement("div");
+  const enemy = document.createElement("div");
   enemy.className = "enemy";
   enemy.innerText = "🚙";
 
-  let enemyLane = Math.floor(Math.random() * 3);
-
+  const enemyLane = Math.floor(Math.random() * 3);
   enemy.dataset.lane = enemyLane;
   enemy.style.left = (25 + enemyLane * 100) + "px";
 
@@ -287,22 +277,26 @@ function createEnemy() {
   enemies.push(enemy);
 }
 
+// GAME LOOP
 function updateGame() {
   for (let i = enemies.length - 1; i >= 0; i--) {
-    let enemy = enemies[i];
+    const enemy = enemies[i];
+    const y = enemy.offsetTop + speed;
 
-    let y = enemy.offsetTop + speed;
     enemy.style.top = y + "px";
 
-    let playerY = player.offsetTop;
+    const playerY = player.offsetTop;
 
     if (
       y + 40 > playerY &&
       y < playerY + 40 &&
       Number(enemy.dataset.lane) === lane
     ) {
-      endGame();
-      return;
+      enemy.remove();
+      enemies.splice(i, 1);
+      loseLife();
+      if (!running) return;
+      continue;
     }
 
     if (y > 450) {
@@ -312,27 +306,49 @@ function updateGame() {
       score++;
       scoreBox.innerText = score;
 
-      scoreSound();
+      playSound(650, 0.12, 0.07);
 
-      if (score % 5 === 0) {
-        speed += 0.5;
+      if (score > best) {
+        best = score;
+        bestBox.innerText = best;
+
+        try {
+          localStorage.setItem("adarshBest", best);
+        } catch(e) {}
       }
+
+      if (score % 5 === 0) speed += 0.5;
     }
   }
 }
 
-function endGame() {
-  if (!running) return;
+// LIVES
+function loseLife() {
+  lives--;
 
+  livesBox.innerText = "❤️".repeat(lives) +
+    "🖤".repeat(3 - lives);
+
+  crashSound();
+
+  if (lives <= 0) {
+    endGame();
+  } else {
+    message.innerText = "💥 टक्कर! " + lives + " Lives बची हैं";
+  }
+}
+
+// GAME OVER
+function endGame() {
   running = false;
 
   clearInterval(timer);
-  clearInterval(lineTimer);
+  clearInterval(enemyTimer);
 
   stopEngine();
-  crashSound();
 
-  message.innerText = "💥 GAME OVER! Score: " + score;
+  message.innerText =
+    "💀 GAME OVER! Final Score: " + score;
 }
 </script>
 
