@@ -1,1 +1,56 @@
-<!DOCTYPE html><html><head>    <title>Guess Number Game</title>    <style>        body {            background-color: lightblue;            text-align: center;            font-family: Arial;        }        .game {            background-color: white;            width: 280px;            margin: 50px auto;            padding: 20px;            border-radius: 15px;            box-shadow: 0 4px 12px gray;        }        input {            padding: 10px;            width: 80%;            margin: 10px;        }        button {            background-color: blue;            color: white;            padding: 12px;            border: none;            border-radius: 8px;            margin: 5px;        }        .animate {            animation: restart 0.5s ease;        }        @keyframes restart {            0% {                transform: rotate(0deg) scale(1);            }            50% {                transform: rotate(5deg) scale(1.05);            }            100% {                transform: rotate(0deg) scale(1);            }        }    </style></head><body><div class="game" id="game">    <h1>Guess The Number 🎮</h1>    <p>1 से 100 के बीच नंबर पहचानो!</p>    <input type="number" id="guess" placeholder="अपना नंबर लिखो">    <br>    <button onclick="checkGuess()">Check</button>    <button onclick="restartGame()">New Game</button>    <h3 id="message">Game शुरू करो!</h3>    <p id="attempts">Attempts: 0</p>    <p id="score">Score: 0</p>    <p id="best">Best Score: 0</p></div><script>    let secretNumber = Math.floor(Math.random() * 100) + 1;    let count = 0;    let gameOver = false;    let bestScore = Number(localStorage.getItem("bestScore")) || 0;    document.getElementById("best").innerHTML =        "Best Score: " + bestScore;    function checkGuess() {        let input = document.getElementById("guess");        let guess = Number(input.value);        if (gameOver) return;        if (input.value === "" || guess < 1 || guess > 100) {            document.getElementById("message").innerHTML =                "1 से 100 के बीच नंबर डालो!";            return;        }        count++;        if (guess === secretNumber) {            let score = Math.max(101 - count, 1);            document.getElementById("message").innerHTML =                "🎉 तुम जीत गए!";            document.getElementById("score").innerHTML =                "Score: " + score;            gameOver = true;            if (score > bestScore) {                bestScore = score;                localStorage.setItem("bestScore", bestScore);                document.getElementById("best").innerHTML =                    "Best Score: " + bestScore;            }        } else if (guess < secretNumber) {            document.getElementById("message").innerHTML =                "थोड़ा बड़ा नंबर डालो! ⬆️";        } else {            document.getElementById("message").innerHTML =                "थोड़ा छोटा नंबर डालो! ⬇️";        }        document.getElementById("attempts").innerHTML =            "Attempts: " + count;    }    function restartGame() {        let game = document.getElementById("game");        game.classList.remove("animate");        void game.offsetWidth;        game.classList.add("animate");        secretNumber = Math.floor(Math.random() * 100) + 1;        count = 0;        gameOver = false;        document.getElementById("guess").value = "";        document.getElementById("message").innerHTML =            "नई गेम शुरू! 🎮";        document.getElementById("attempts").innerHTML =            "Attempts: 0";        document.getElementById("score").innerHTML =            "Score: 0";    }</script></body></html>
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Adarsh Games</title>
+<style>
+body {
+  background: #101827;
+  color: white;
+  font-family: Arial;
+  text-align: center;
+  padding: 25px;
+}
+h1 { color: #ffd43b; }
+.game {
+  background: #ffffff;
+  color: #222;
+  padding: 25px;
+  margin: 25px auto;
+  border-radius: 18px;
+  max-width: 350px;
+}
+button {
+  background: #2563eb;
+  color: white;
+  border: 0;
+  padding: 13px 22px;
+  border-radius: 10px;
+  font-size: 18px;
+}
+</style>
+</head>
+<body>
+
+<h1>🎮 Adarsh Games</h1>
+<p>Choose Your Game!</p>
+
+<div class="game">
+  <h2>🔢 Guess The Number</h2>
+  <p>Guess the secret number!</p>
+  <button onclick="location.href='guess.html'">
+    Play Now
+  </button>
+</div>
+
+<div class="game">
+  <h2>🏎️ Car Racing</h2>
+  <p>Drive your car and avoid other cars!</p>
+  <button onclick="location.href='racing.html'">
+    Play Now
+  </button>
+</div>
+
+</body>
+</html>
