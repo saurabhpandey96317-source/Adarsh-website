@@ -4,438 +4,252 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Adarsh Racing 5.2</title>
+<title>Adarsh Police Chase</title>
 <style>
 *{box-sizing:border-box}
-body{
- margin:0;padding:8px;background:#101827;color:white;
- text-align:center;font-family:Arial;overflow-x:hidden;
-}
-h1{font-size:23px;color:#ffd43b;margin:8px}
-.stats{
- display:flex;justify-content:center;flex-wrap:wrap;
- gap:9px;margin:10px;font-size:14px
-}
-h3{margin:10px}
-.cars,.buttons,.controls{
- display:flex;justify-content:center;gap:9px;margin:9px
-}
-.car,.control,.btn{
- border:0;border-radius:10px;padding:10px;
- background:#293b54;color:white;font-size:20px
-}
-.car{width:57px;border:2px solid orange}
-.selected{background:orange}
-canvas{
- display:block;width:min(300px,94vw);
- height:auto;aspect-ratio:3/5;
- margin:10px auto;border:3px solid white;
- border-radius:12px;
-}
-#msg{font-size:14px;min-height:20px;color:#ffe082;margin:7px}
-.control{width:90px;height:46px;touch-action:none}
-.btn{font-size:14px;background:#ffb000;color:#111;font-weight:bold;padding:12px}
-#nitro{background:#00bde8}
-#sound{background:#4b607c;color:white}
-#heartDisplay{color:#ff4545;letter-spacing:2px}
+body{margin:0;background:#101820;color:white;font-family:Arial;text-align:center;overflow:hidden}
+h2{margin:8px;font-size:21px}
+#stats{display:flex;justify-content:space-around;flex-wrap:wrap;gap:5px;margin:7px;font-size:14px}
+canvas{display:block;margin:auto;background:#333;width:min(300px,94vw);height:auto;max-height:65vh;border:3px solid white;border-radius:10px}
+.controls{display:flex;justify-content:center;gap:12px;margin:9px}
+button{border:0;border-radius:10px;padding:12px 20px;font-size:18px;font-weight:bold;background:#ffcc00;color:#111}
+#nitro{background:#00c8ff}
+#start{background:#35db65}
+#msg{font-size:15px;min-height:20px}
 </style>
 </head>
 <body>
-
-<h1>🚔 ADARSH RACING 5.2</h1>
-
-<div class="stats">
- <span>🏆 Score: <b id="score">0</b></span>
- <span>🥇 Best: <b id="best">0</b></span>
- <span>❤️ <b id="heartDisplay">❤️❤️❤️</b></span>
- <span>⛽ Fuel: <b id="fuel">100</b>%</span>
- <span>🪙 Coins: <b id="coins">0</b></span>
+<h2>🚓 ADARSH POLICE CHASE 🏎️</h2>
+<div id="stats">
+<span id="lives">❤️❤️❤️</span>
+<span>Score: <b id="score">0</b></span>
+<span>🪙 <b id="coins">0</b></span>
+<span>🏆 <b id="high">0</b></span>
 </div>
 
-<h3>🚘 Choose Your Car</h3>
-<div class="cars">
- <button class="car selected" data-car="🏎️">🏎️</button>
- <button class="car" data-car="🚕">🚕</button>
- <button class="car" data-car="🚓">🚓</button>
- <button class="car" data-car="🚑">🚑</button>
-</div>
-
-<canvas id="game" width="360" height="600"></canvas>
-
-<div id="msg">START dabao aur race shuru karo!</div>
-
+<canvas id="game" width="300" height="500"></canvas>
+<div id="msg">Police se bachkar bhaago!</div>
 <div class="controls">
- <button class="control" id="left">⬅️</button>
- <button class="control" id="right">➡️</button>
+<button onclick="move(-1)">⬅️ LEFT</button>
+<button id="nitro" onclick="boost()">⚡ NITRO</button>
+<button onclick="move(1)">RIGHT ➡️</button>
 </div>
-
-<div class="buttons">
- <button class="btn" id="start">▶ START</button>
- <button class="btn" id="nitro">⚡ NITRO</button>
- <button class="btn" id="sound">🔊 SOUND ON</button>
-</div>
+<button id="start" onclick="startGame()">▶ START GAME</button>
+<div style="font-size:12px;margin:7px">Police se bacho aur coins collect karo!</div>
 
 <script>
-const canvas=document.getElementById("game");
-const ctx=canvas.getContext("2d");
-const el=id=>document.getElementById(id);
+const c=document.getElementById("game");
+const ctx=c.getContext("2d");
+const lanes=[65,150,235];
 
-let lane=0;
+let playerLane=1;
+let policeLane=1;
+let traffic=[];
+let coinsList=[];
+let score=0,coins=0,lives=3;
+let running=false,frame=0;
+let policeDistance=0;
+let nitro=0;
 let car="🏎️";
-let score=0,coins=0,lives=3,fuel=100,best=0;
-let running=false,over=false,nitro=0;
-let roadMove=0,spawn=0,items=[];
-let policeLane=0;
-let policeX=180;
-let soundOn=true,audio=null,last=0;
-let hitCooldown=0;
+let high=Number(localStorage.getItem("adarshPoliceHigh")||0);
 
-try{
- best=Number(localStorage.getItem("adarshBest52")||0);
-}catch(e){}
-
-function beep(freq=400,duration=.1){
- if(!soundOn)return;
- try{
-  audio=audio||new(window.AudioContext||window.webkitAudioContext)();
-  if(audio.state==="suspended")audio.resume();
-  const osc=audio.createOscillator();
-  const gain=audio.createGain();
-  osc.frequency.value=freq;
-  gain.gain.value=.06;
-  osc.connect(gain);
-  gain.connect(audio.destination);
-  osc.start();
-  gain.gain.exponentialRampToValueAtTime(.001,audio.currentTime+duration);
-  osc.stop(audio.currentTime+duration);
- }catch(e){}
-}
+document.getElementById("high").textContent=high;
 
 function updateUI(){
- el("score").textContent=Math.floor(score);
- el("best").textContent=best;
- el("heartDisplay").textContent="❤️".repeat(lives)+"🖤".repeat(3-lives);
- el("fuel").textContent=Math.floor(fuel);
- el("coins").textContent=coins;
+ document.getElementById("lives").textContent=
+ "❤️".repeat(lives)+"🖤".repeat(3-lives);
+ document.getElementById("score").textContent=score;
+ document.getElementById("coins").textContent=coins;
+ document.getElementById("high").textContent=high;
 }
 
-function road(y){
- const z=y/600;
- const half=35+z*145;
- return {left:180-half,right:180+half,half};
-}
+function road(){
+ ctx.fillStyle="#28733a";
+ ctx.fillRect(0,0,300,500);
+ ctx.fillStyle="#444";
+ ctx.fillRect(20,0,260,500);
 
-function laneX(l,y){
- const r=road(y);
- return 180+l*r.half*.58;
-}
-
-function drawBackground(){
- const sky=ctx.createLinearGradient(0,0,0,350);
- sky.addColorStop(0,"#34799e");
- sky.addColorStop(1,"#b6d4df");
- ctx.fillStyle=sky;
- ctx.fillRect(0,0,360,600);
-
- // City buildings
- for(let i=0;i<11;i++){
-  const bx=i*38-5;
-  const bh=90+(i*37%100);
-  ctx.fillStyle="#394c5e";
-  ctx.fillRect(bx,340-bh,27,bh);
-  ctx.fillStyle="#ffe19b";
-  for(let yy=350-bh+12;yy<330;yy+=22){
-   ctx.fillRect(bx+7,yy,6,9);
-   ctx.fillRect(bx+17,yy,5,9);
-  }
- }
-
- // Grass
- ctx.fillStyle="#286232";
- ctx.fillRect(0,340,360,260);
-
- // Road
- const a=road(340),b=road(600);
- ctx.fillStyle="#292c32";
- ctx.beginPath();
- ctx.moveTo(a.left,340);
- ctx.lineTo(a.right,340);
- ctx.lineTo(b.right,600);
- ctx.lineTo(b.left,600);
- ctx.closePath();
- ctx.fill();
-
- // Road edges
- ctx.strokeStyle="white";
- ctx.lineWidth=4;
- ctx.beginPath();
- ctx.moveTo(a.left,340);
- ctx.lineTo(b.left,600);
- ctx.moveTo(a.right,340);
- ctx.lineTo(b.right,600);
- ctx.stroke();
-
- // Lane markings
  ctx.fillStyle="white";
- for(let i=0;i<8;i++){
-  const y=340+(i*39+roadMove)%260;
-  const r=road(y);
-  for(let j=1;j<=2;j++){
-   ctx.fillRect(r.left+r.half*2*j/3-2,y,4,15);
-  }
- }
+ ctx.fillRect(20,0,5,500);
+ ctx.fillRect(275,0,5,500);
+
+ ctx.strokeStyle="#ddd";
+ ctx.lineWidth=3;
+ ctx.setLineDash([25,25]);
+ ctx.lineDashOffset=-frame*4;
+ ctx.beginPath();
+ ctx.moveTo(106,0);ctx.lineTo(106,500);
+ ctx.moveTo(194,0);ctx.lineTo(194,500);
+ ctx.stroke();
+ ctx.setLineDash([]);
 }
 
-function drawObjects(){
- for(const o of items){
-  ctx.textAlign="center";
-  ctx.font="30px Arial";
-  const emoji=o.type==="coin"?"🪙":
-   o.type==="fuel"?"⛽":"🚙";
-  ctx.fillText(emoji,laneX(o.lane,o.y),o.y);
- }
-}
-
-function drawPolice(){
- // Police is below the player: visually behind your car
- const y=565;
- const x=laneX(policeLane,y);
-
+function drawCar(x,y,emoji){
+ ctx.font="35px Arial";
  ctx.textAlign="center";
- ctx.font="37px Arial";
- ctx.fillText("🚔",x,y);
-
- // Flashing police lights
- ctx.fillStyle="#ff3333";
- ctx.fillRect(x-13,y-27,10,4);
- ctx.fillStyle="#33aaff";
- ctx.fillRect(x+3,y-27,10,4);
-}
-
-function drawPlayer(){
- const y=500;
- const x=laneX(lane,y);
-
- ctx.textAlign="center";
- ctx.font="43px Arial";
- ctx.fillText(car,x,y);
-
- if(nitro>0){
-  ctx.font="22px Arial";
-  ctx.fillText("🔥",x,y+22);
- }
+ ctx.fillText(emoji,x,y);
 }
 
 function draw(){
- drawBackground();
- drawObjects();
+ road();
 
- if(running){
-  drawPolice();
-  drawPlayer();
- }else{
-  drawPlayer();
-  ctx.fillStyle="rgba(0,0,0,.4)";
-  ctx.fillRect(0,0,360,600);
-  ctx.fillStyle="white";
-  ctx.textAlign="center";
-  ctx.font="bold 25px Arial";
-  ctx.fillText(over?"GAME OVER":"POLICE CHASE",180,290);
-  ctx.font="16px Arial";
-  ctx.fillText("START BUTTON DABAO",180,325);
- }
-}
-
-function spawnItem(){
- const r=Math.random();
- const type=r<.48?"obstacle":r<.76?"coin":"fuel";
-
- // Avoid spawning every object in player's lane
- let newLane=Math.floor(Math.random()*3)-1;
-
- items.push({
-  lane:newLane,
-  y:340,
-  type:type
+ // Traffic cars
+ traffic.forEach(t=>{
+  drawCar(lanes[t.lane],t.y,t.emoji);
  });
-}
 
-function crash(){
- if(hitCooldown>0||!running)return;
+ // Coins
+ coinsList.forEach(o=>{
+  ctx.font="23px Arial";
+  ctx.textAlign="center";
+  ctx.fillText("🪙",lanes[o.lane],o.y);
+ });
 
- hitCooldown=65;
- lives--;
- beep(100,.3);
- el("msg").textContent="💥 Takkar hui! Ek Life kam hui.";
+ // Police behind player
+ drawCar(lanes[policeLane],420,"🚓");
 
- if(lives<=0){
-  lives=0;
-  end();
+ // Player
+ drawCar(lanes[playerLane],350,car);
+
+ // Nitro effect
+ if(nitro>0){
+  ctx.fillStyle="#00dfff";
+  ctx.font="15px Arial";
+  ctx.fillText("⚡ NITRO!",150,470);
  }
- updateUI();
 }
 
-function end(){
- running=false;
- over=true;
- el("msg").textContent="🏁 Game Over! Score: "+Math.floor(score);
- beep(180,.5);
- draw();
+function move(dir){
+ if(!running)return;
+ playerLane=Math.max(0,Math.min(2,playerLane+dir));
+}
+
+function boost(){
+ if(running && nitro===0){
+  nitro=100;
+  document.getElementById("msg").textContent="⚡ NITRO BOOST!";
+ }
 }
 
 function startGame(){
+ playerLane=1;
+ policeLane=1;
+ traffic=[];
+ coinsList=[];
  score=0;
  coins=0;
  lives=3;
- fuel=100;
- lane=0;
- policeLane=0;
+ frame=0;
+ policeDistance=0;
  nitro=0;
- items=[];
- spawn=0;
- roadMove=0;
- hitCooldown=0;
- policeX=180;
-
  running=true;
- over=false;
- last=0;
-
- el("msg").textContent="🚔 Police tumhare peeche hai!";
+ document.getElementById("start").textContent="🔄 RESTART";
+ document.getElementById("msg").textContent="Police tumhara peecha kar rahi hai!";
  updateUI();
- beep(650);
  requestAnimationFrame(loop);
 }
 
-function loop(time){
- if(!running)return;
-
- if(!last)last=time;
- const dt=Math.min((time-last)/16.67,2);
- last=time;
-
- const speed=nitro>0?5.5:3;
-
- roadMove=(roadMove+speed*dt)%260;
- score+=.12*dt*(nitro>0?2:1);
- fuel-=.018*dt*(nitro>0?2.2:1);
-
- if(nitro>0)nitro=Math.max(0,nitro-dt);
- if(hitCooldown>0)hitCooldown-=dt;
-
- // Police follows the player's lane gradually
- policeLane=lane;
- policeX=laneX(policeLane,565);
-
- // Spawn traffic
- spawn+=dt;
- if(spawn>48){
-  spawnItem();
-  spawn=0;
- }
-
- // Move traffic and detect collisions
- for(let i=items.length-1;i>=0;i--){
-  const o=items[i];
-  o.y+=speed*dt;
-
-  // Player car is at y=500
-  if(o.y>475&&o.y<515&&o.lane===lane){
-   if(o.type==="obstacle"){
-    crash();
-   }
-
-   if(o.type==="coin"){
-    coins++;
-    score+=10;
-    beep(850,.08);
-   }
-
-   if(o.type==="fuel"){
-    fuel=Math.min(100,fuel+22);
-    beep(500,.12);
-   }
-
-   items.splice(i,1);
-   continue;
-  }
-
-  if(o.y>620)items.splice(i,1);
- }
-
- // High score
- if(score>best){
-  best=Math.floor(score);
-  try{
-   localStorage.setItem("adarshBest52",best);
-  }catch(e){}
- }
-
- if(fuel<=0){
-  fuel=0;
-  end();
- }
-
- updateUI();
- draw();
-
- if(running)requestAnimationFrame(loop);
+function gameOver(message){
+ running=false;
+ document.getElementById("msg").textContent=message+" Score: "+score;
+ document.getElementById("start").textContent="▶ PLAY AGAIN";
 }
 
-function moveLane(direction){
+function loop(){
  if(!running)return;
- lane=Math.max(-1,Math.min(1,lane+direction));
- beep(300,.05);
-}
+ frame++;
 
-el("left").addEventListener("pointerdown",e=>{
- e.preventDefault();
- moveLane(-1);
-});
+ let speed=nitro>0?5.5:3;
+ if(nitro>0)nitro--;
 
-el("right").addEventListener("pointerdown",e=>{
- e.preventDefault();
- moveLane(1);
-});
-
-el("start").onclick=startGame;
-
-el("nitro").onclick=()=>{
- if(running&&fuel>5){
-  nitro=100;
-  fuel-=5;
-  beep(950,.2);
-  updateUI();
- }
-};
-
-el("sound").onclick=()=>{
- soundOn=!soundOn;
- el("sound").textContent=soundOn?"🔊 SOUND ON":"🔇 SOUND OFF";
- if(soundOn)beep(500);
-};
-
-document.querySelectorAll(".car").forEach(button=>{
- button.onclick=()=>{
-  if(running)return;
-
-  document.querySelectorAll(".car").forEach(b=>{
-   b.classList.remove("selected");
+ if(frame%65===0){
+  traffic.push({
+   lane:Math.floor(Math.random()*3),
+   y:-30,
+   emoji:["🚕","🚙","🚗"][Math.floor(Math.random()*3)]
   });
+ }
 
-  button.classList.add("selected");
-  car=button.dataset.car;
-  draw();
- };
-});
+ if(frame%100===0){
+  coinsList.push({
+   lane:Math.floor(Math.random()*3),
+   y:-20
+  });
+ }
 
-document.addEventListener("keydown",e=>{
- if(e.key==="ArrowLeft")moveLane(-1);
- if(e.key==="ArrowRight")moveLane(1);
-});
+ traffic.forEach(t=>t.y+=speed);
+ coinsList.forEach(o=>o.y+=speed);
 
-updateUI();
+ // Traffic collision
+ traffic=traffic.filter(t=>{
+  if(t.y>325 && t.y<380 && t.lane===playerLane){
+   lives--;
+   updateUI();
+   document.getElementById("msg").textContent="💥 Traffic se takkar!";
+   if(lives<=0){
+    gameOver("GAME OVER!");
+   }
+   return false;
+  }
+  return t.y<530;
+ });
+
+ // Collect coins
+ coinsList=coinsList.filter(o=>{
+  if(o.y>325 && o.y<380 && o.lane===playerLane){
+   coins++;
+   score+=10;
+   updateUI();
+   return false;
+  }
+  return o.y<530;
+ });
+
+ // Police chase
+ if(frame%45===0){
+  policeLane=playerLane;
+ }
+
+ // Police gradually catches up
+ policeDistance+=0.08;
+ if(nitro>0)policeDistance-=0.8;
+ if(policeDistance<0)policeDistance=0;
+
+ if(policeDistance>100){
+  gameOver("🚓 POLICE NE PAKAD LIYA!");
+ }
+
+ score++;
+ if(score>high){
+  high=score;
+  localStorage.setItem("adarshPoliceHigh",high);
+ }
+ updateUI();
+
+ draw();
+ requestAnimationFrame(loop);
+}
+
 draw();
+updateUI();
+
+// Keyboard controls
+document.addEventListener("keydown",e=>{
+ if(e.key==="ArrowLeft")move(-1);
+ if(e.key==="ArrowRight")move(1);
+ if(e.key===" " )boost();
+});
+
+// Mobile swipe
+let touchX=0;
+c.addEventListener("touchstart",e=>{
+ touchX=e.touches[0].clientX;
+},{passive:true});
+
+c.addEventListener("touchend",e=>{
+ let dx=e.changedTouches[0].clientX-touchX;
+ if(Math.abs(dx)>25)move(dx>0?1:-1);
+},{passive:true});
 </script>
 </body>
 </html>
