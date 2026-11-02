@@ -4,24 +4,27 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Adarsh Police Chase 7.0</title>
+<title>Adarsh Police Chase 8.0</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#101820;color:white;font-family:Arial;text-align:center;overflow-x:hidden}
-h2{margin:8px;font-size:21px}
-#stats{display:flex;justify-content:space-around;flex-wrap:wrap;gap:6px;margin:7px;font-size:14px}
-#mission{background:#263746;padding:8px;margin:7px auto;border-radius:9px;width:94%;max-width:330px;font-size:14px}
-canvas{display:block;margin:auto;background:#333;width:min(300px,94vw);height:auto;max-height:62vh;border:3px solid white;border-radius:10px}
-.controls{display:flex;justify-content:center;gap:10px;margin:9px}
-button{border:0;border-radius:10px;padding:12px 16px;font-size:17px;font-weight:bold;background:#ffcc00;color:#111}
+body{margin:0;background:#101820;color:white;font-family:Arial;text-align:center}
+h2{font-size:20px;margin:9px}
+#stats{display:flex;justify-content:space-around;flex-wrap:wrap;gap:7px;margin:8px;font-size:14px}
+#mission{background:#263746;padding:9px;margin:8px auto;border-radius:9px;width:94%;max-width:340px;font-size:14px}
+canvas{display:block;margin:auto;width:min(300px,94vw);height:auto;border:3px solid white;border-radius:10px;background:#333}
+button{border:0;border-radius:9px;padding:11px 14px;font-size:16px;font-weight:bold;background:#ffcc00;color:#111;margin:3px}
+.controls{display:flex;justify-content:center;gap:5px;margin:8px}
 #nitro{background:#00c8ff}
 #start{background:#35db65}
-#msg{font-size:14px;min-height:20px;margin:5px}
+#garage{background:#9c6bff;color:white}
+#garageBox{display:none;background:#263746;margin:10px auto;padding:10px;border-radius:12px;width:94%;max-width:350px}
+.carItem{background:#34495e;padding:8px;margin:6px;border-radius:8px}
+.small{font-size:12px}
 </style>
 </head>
 <body>
 
-<h2>🚓 ADARSH POLICE CHASE 7.0</h2>
+<h2>🚓 ADARSH POLICE CHASE 8.0</h2>
 
 <div id="stats">
 <span id="lives">❤️❤️❤️</span>
@@ -33,8 +36,6 @@ button{border:0;border-radius:10px;padding:12px 16px;font-size:17px;font-weight:
 
 <div id="mission">
 🎯 Mission: 200 Score + 3 Coins
-<br>
-<small id="progress">Score: 0/200 | Coins: 0/3</small>
 </div>
 
 <canvas id="game" width="300" height="500"></canvas>
@@ -48,41 +49,132 @@ button{border:0;border-radius:10px;padding:12px 16px;font-size:17px;font-weight:
 </div>
 
 <button id="start" onclick="startGame()">▶ START GAME</button>
-<div style="font-size:12px;margin:7px">Swipe bhi kar sakte ho!</div>
+<button id="garage" onclick="toggleGarage()">🚗 GARAGE</button>
+
+<div id="garageBox">
+<h3>🚗 MY GARAGE</h3>
+<p>🪙 Coins: <b id="garageCoins">0</b></p>
+<div id="carList"></div>
+<hr>
+<p>⚡ Speed Upgrade: Level <b id="upgradeLevel">0</b></p>
+<p class="small">Har upgrade se car ki speed badhegi.</p>
+<button onclick="upgradeSpeed()">⚡ UPGRADE - 30 COINS</button>
+</div>
+
+<p class="small">Car chalao, coins kamao aur police se bacho!</p>
 
 <script>
 const c=document.getElementById("game");
 const ctx=c.getContext("2d");
 const lanes=[65,150,235];
 
-let playerLane=1;
-let policeLane=1;
-let traffic=[];
-let coinsList=[];
-let score=0,coins=0,lives=3;
-let level=1,levelCoins=0;
-let running=false,frame=0;
-let policeDistance=0;
-let nitro=0;
+const cars=[
+ {name:"Starter",emoji:"🏎️",price:0},
+ {name:"Taxi",emoji:"🚕",price:30},
+ {name:"Police",emoji:"🚓",price:60},
+ {name:"Ambulance",emoji:"🚑",price:90},
+ {name:"Sport",emoji:"🏎️",price:120},
+ {name:"Truck",emoji:"🚚",price:150}
+];
+
+let unlocked=JSON.parse(localStorage.getItem("adarshCars")||"[0]");
+let selected=Number(localStorage.getItem("adarshSelected")||0);
+let upgrade=Number(localStorage.getItem("adarshUpgrade")||0);
+let wallet=Number(localStorage.getItem("adarshWallet")||0);
+
+let playerLane=1,policeLane=1;
+let traffic=[],coinsList=[];
+let score=0,coins=0,lives=3,level=1,levelCoins=0;
+let frame=0,running=false,nitro=0,policeDistance=0;
 let high=Number(localStorage.getItem("adarshPoliceHigh")||0);
 
-function targetScore(){
- return level*200;
+function saveGarage(){
+ localStorage.setItem("adarshCars",JSON.stringify(unlocked));
+ localStorage.setItem("adarshSelected",selected);
+ localStorage.setItem("adarshUpgrade",upgrade);
+ localStorage.setItem("adarshWallet",wallet);
 }
 
 function updateUI(){
  document.getElementById("lives").textContent=
  "❤️".repeat(lives)+"🖤".repeat(3-lives);
  document.getElementById("score").textContent=score;
- document.getElementById("coins").textContent=coins;
+ document.getElementById("coins").textContent=wallet;
  document.getElementById("high").textContent=high;
  document.getElementById("level").textContent=level;
 
  document.getElementById("mission").innerHTML=
- "🎯 Level "+level+" Mission: "+targetScore()+" Score + 3 Coins"+
- "<br><small id='progress'>Score: "+
- Math.min(score,(level*200))+"/"+targetScore()+
- " | Coins: "+levelCoins+"/3</small>";
+ "🎯 Level "+level+" Mission: "+(level*200)+
+ " Score + 3 Coins"+
+ "<br><small>Score: "+Math.min(score,level*200)+
+ "/"+(level*200)+" | Coins: "+levelCoins+"/3</small>";
+
+ document.getElementById("garageCoins").textContent=wallet;
+ document.getElementById("upgradeLevel").textContent=upgrade;
+}
+
+function renderGarage(){
+ let html="";
+ cars.forEach((car,i)=>{
+  let owned=unlocked.includes(i);
+  let selectedCar=selected===i;
+  html+=`
+  <div class="carItem">
+  <div style="font-size:30px">${car.emoji}</div>
+  <b>${car.name}</b><br>
+  <small>${owned?"Unlocked":"Price: "+car.price+" coins"}</small><br>
+  ${selectedCar
+   ?'<button disabled>✅ SELECTED</button>'
+   :owned
+    ?'<button onclick="selectCar('+i+')">SELECT</button>'
+    :'<button onclick="buyCar('+i+')">🪙 BUY</button>'}
+  </div>`;
+ });
+ document.getElementById("carList").innerHTML=html;
+ updateUI();
+}
+
+function toggleGarage(){
+ let box=document.getElementById("garageBox");
+ box.style.display=box.style.display==="block"?"none":"block";
+ renderGarage();
+}
+
+function selectCar(i){
+ if(!unlocked.includes(i))return;
+ selected=i;
+ saveGarage();
+ renderGarage();
+ document.getElementById("msg").textContent=cars[i].name+" car selected!";
+}
+
+function buyCar(i){
+ if(unlocked.includes(i))return;
+ if(wallet<cars[i].price){
+  alert("Coins kam hain! Game khelkar coins kamao.");
+  return;
+ }
+ wallet-=cars[i].price;
+ unlocked.push(i);
+ saveGarage();
+ renderGarage();
+ document.getElementById("msg").textContent="🎉 New car unlocked!";
+}
+
+function upgradeSpeed(){
+ if(upgrade>=5){
+  alert("Maximum speed upgrade ho gaya!");
+  return;
+ }
+ if(wallet<30){
+  alert("30 coins chahiye!");
+  return;
+ }
+ wallet-=30;
+ upgrade++;
+ saveGarage();
+ renderGarage();
+ document.getElementById("msg").textContent="⚡ Speed upgraded!";
 }
 
 function road(){
@@ -90,7 +182,6 @@ function road(){
  ctx.fillRect(0,0,300,500);
  ctx.fillStyle="#444";
  ctx.fillRect(20,0,260,500);
-
  ctx.fillStyle="white";
  ctx.fillRect(20,0,5,500);
  ctx.fillRect(275,0,5,500);
@@ -114,10 +205,7 @@ function drawCar(x,y,emoji){
 
 function draw(){
  road();
-
- traffic.forEach(t=>{
-  drawCar(lanes[t.lane],t.y,t.emoji);
- });
+ traffic.forEach(t=>drawCar(lanes[t.lane],t.y,t.emoji));
 
  coinsList.forEach(o=>{
   ctx.font="23px Arial";
@@ -125,11 +213,8 @@ function draw(){
   ctx.fillText("🪙",lanes[o.lane],o.y);
  });
 
- // Police behind the player
  drawCar(lanes[policeLane],420,"🚓");
-
- // Player
- drawCar(lanes[playerLane],350,"🏎️");
+ drawCar(lanes[playerLane],350,cars[selected].emoji);
 
  if(nitro>0){
   ctx.fillStyle="#00dfff";
@@ -144,7 +229,7 @@ function move(dir){
 }
 
 function boost(){
- if(running && nitro===0){
+ if(running&&nitro===0){
   nitro=100;
   document.getElementById("msg").textContent="⚡ NITRO BOOST!";
  }
@@ -164,7 +249,6 @@ function startGame(){
  policeDistance=0;
  nitro=0;
  running=true;
-
  document.getElementById("start").textContent="🔄 RESTART";
  document.getElementById("msg").textContent="🚓 Police tumhara peecha kar rahi hai!";
  updateUI();
@@ -173,8 +257,7 @@ function startGame(){
 
 function gameOver(message){
  running=false;
- document.getElementById("msg").textContent=
- message+" Final Score: "+score;
+ document.getElementById("msg").textContent=message+" Score: "+score;
  document.getElementById("start").textContent="▶ PLAY AGAIN";
 }
 
@@ -184,19 +267,17 @@ function nextLevel(){
  policeDistance=0;
  traffic=[];
  coinsList=[];
- document.getElementById("msg").textContent=
- "🎉 LEVEL "+level+" START! Naya Mission!";
- updateUI();
+ document.getElementById("msg").textContent="🎉 LEVEL "+level+" COMPLETE!";
 }
 
 function loop(){
  if(!running)return;
  frame++;
 
- let speed=(3+(level-1)*0.5)+(nitro>0?2.5:0);
- if(nitro>0)nitro--;
+ let speed=3+(level-1)*0.4+upgrade*0.25;
+ if(nitro>0){speed+=2.5;nitro--;}
 
- let spawnRate=Math.max(35,65-(level-1)*4);
+ let spawnRate=Math.max(35,65-(level-1)*3);
 
  if(frame%spawnRate===0){
   traffic.push({
@@ -207,24 +288,18 @@ function loop(){
  }
 
  if(frame%90===0){
-  coinsList.push({
-   lane:Math.floor(Math.random()*3),
-   y:-20
-  });
+  coinsList.push({lane:Math.floor(Math.random()*3),y:-20});
  }
 
  traffic.forEach(t=>t.y+=speed);
  coinsList.forEach(o=>o.y+=speed);
 
- // Traffic collision
  traffic=traffic.filter(t=>{
-  if(t.y>325 && t.y<380 && t.lane===playerLane){
+  if(t.y>325&&t.y<380&&t.lane===playerLane){
    lives--;
    updateUI();
    document.getElementById("msg").textContent="💥 Traffic se takkar!";
-   if(lives<=0){
-    gameOver("GAME OVER!");
-   }
+   if(lives<=0)gameOver("GAME OVER!");
    return false;
   }
   return t.y<530;
@@ -232,12 +307,11 @@ function loop(){
 
  if(!running)return;
 
- // Collect coins
  coinsList=coinsList.filter(o=>{
-  if(o.y>325 && o.y<380 && o.lane===playerLane){
-   coins++;
+  if(o.y>325&&o.y<380&&o.lane===playerLane){
+   wallet++;
    levelCoins++;
-   score+=10;
+   saveGarage();
    updateUI();
    document.getElementById("msg").textContent="🪙 Coin collected!";
    return false;
@@ -245,15 +319,11 @@ function loop(){
   return o.y<530;
  });
 
- // Police follows player
- if(frame%30===0){
-  policeLane=playerLane;
- }
+ if(frame%30===0)policeLane=playerLane;
 
- // Police chase pressure
  policeDistance+=0.07+(level-1)*0.01;
  if(nitro>0)policeDistance-=0.9;
- if(policeDistance<0)policeDistance=0;
+ policeDistance=Math.max(0,policeDistance);
 
  if(policeDistance>100){
   gameOver("🚓 POLICE NE PAKAD LIYA!");
@@ -268,8 +338,7 @@ function loop(){
   localStorage.setItem("adarshPoliceHigh",high);
  }
 
- // Complete mission
- if(score>=targetScore() && levelCoins>=3){
+ if(score>=level*200&&levelCoins>=3){
   nextLevel();
  }
 
@@ -279,25 +348,23 @@ function loop(){
  if(running)requestAnimationFrame(loop);
 }
 
-draw();
-updateUI();
-
 document.addEventListener("keydown",e=>{
  if(e.key==="ArrowLeft")move(-1);
  if(e.key==="ArrowRight")move(1);
  if(e.key===" ")boost();
 });
 
-// Mobile swipe
 let touchX=0;
 c.addEventListener("touchstart",e=>{
  touchX=e.touches[0].clientX;
 },{passive:true});
-
 c.addEventListener("touchend",e=>{
  let dx=e.changedTouches[0].clientX-touchX;
  if(Math.abs(dx)>25)move(dx>0?1:-1);
 },{passive:true});
+
+draw();
+renderGarage();
 </script>
 </body>
 </html>
