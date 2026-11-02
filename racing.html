@@ -3,51 +3,70 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Adarsh Car Racing 4.0</title>
 
 <style>
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
 body {
   margin: 0;
+  padding: 5px;
   background: #101827;
   color: white;
   font-family: Arial, sans-serif;
   text-align: center;
+  overflow-x: hidden;
 }
 
 h2 {
   color: #ffd43b;
-  margin: 12px 0;
+  margin: 8px 0;
+  font-size: 21px;
 }
 
 .stats {
   display: flex;
   justify-content: center;
-  gap: 13px;
+  gap: 10px;
   flex-wrap: wrap;
-  font-size: 15px;
-  margin: 10px;
+  font-size: 13px;
+  margin: 8px 0;
+}
+
+#cars button {
+  background: #263449;
+  color: white;
+  border: 2px solid orange;
+  padding: 7px 12px;
+  font-size: 21px;
+}
+
+#cars button.selected {
+  background: orange;
+  color: black;
 }
 
 #gameCanvas {
-  width: min(96vw, 380px);
-  height: auto;
   display: block;
-  margin: auto;
+  width: min(94vw, 380px);
+  height: auto;
+  aspect-ratio: 3 / 5;
+  margin: 5px auto;
   border: 3px solid white;
-  border-radius: 10px;
+  border-radius: 9px;
   background: #82cfff;
   touch-action: none;
 }
 
 button {
   border: 0;
-  border-radius: 10px;
-  padding: 12px 17px;
-  margin: 5px;
-  font-size: 16px;
+  border-radius: 9px;
+  padding: 10px 14px;
+  margin: 4px;
+  font-size: 15px;
   font-weight: bold;
   background: orange;
   color: #111;
@@ -56,7 +75,7 @@ button {
 
 .controls button {
   min-width: 90px;
-  font-size: 20px;
+  font-size: 19px;
 }
 
 #nitroBtn {
@@ -71,18 +90,9 @@ button {
 
 #message {
   color: #ffdf52;
-  min-height: 22px;
-}
-
-#cars button {
-  background: #263449;
-  color: white;
-  border: 2px solid orange;
-}
-
-#cars button.selected {
-  background: orange;
-  color: black;
+  font-size: 15px;
+  min-height: 20px;
+  margin: 7px;
 }
 
 .small {
@@ -191,7 +201,6 @@ function beep(freq, duration, volume) {
 
     osc.frequency.value = freq;
     osc.type = "sine";
-
     gain.gain.value = volume;
 
     osc.connect(gain);
@@ -228,24 +237,18 @@ function chooseCar(value, button) {
     .forEach(b => b.classList.remove("selected"));
 
   button.classList.add("selected");
-
   draw();
 }
 
-// ROAD PERSPECTIVE
+// ROAD
 function roadData(z) {
   const y = 165 + z * z * 435;
   const half = 28 + z * 145;
 
-  return {
-    y: y,
-    half: half,
-    center: 180
-  };
+  return { y, half };
 }
 
 function drawRoad() {
-  // Sky
   const sky = ctx.createLinearGradient(0, 0, 0, 200);
   sky.addColorStop(0, "#55b9ff");
   sky.addColorStop(1, "#d7f4ff");
@@ -253,23 +256,19 @@ function drawRoad() {
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, 360, 600);
 
-  // Distant city
-  ctx.fillStyle = "#65778c";
-
+  // City
   for (let i = 0; i < 12; i++) {
     const x = i * 34;
-    const height = 35 + (i * 17 % 55);
+    const h = 35 + (i * 17 % 55);
 
-    ctx.fillRect(x, 165 - height, 25, height);
+    ctx.fillStyle = "#65778c";
+    ctx.fillRect(x, 165 - h, 25, h);
 
     ctx.fillStyle = "#ffe58a";
-
     for (let j = 0; j < 3; j++) {
       ctx.fillRect(x + 5, 140 - j * 12, 4, 5);
       ctx.fillRect(x + 15, 140 - j * 12, 4, 5);
     }
-
-    ctx.fillStyle = "#65778c";
   }
 
   // Grass
@@ -289,10 +288,8 @@ function drawRoad() {
   ctx.closePath();
   ctx.fill();
 
-  // Road edges
   ctx.strokeStyle = "white";
   ctx.lineWidth = 5;
-
   ctx.beginPath();
   ctx.moveTo(180 - top.half, top.y);
   ctx.lineTo(180 - bottom.half, bottom.y);
@@ -300,12 +297,12 @@ function drawRoad() {
   ctx.lineTo(180 + bottom.half, bottom.y);
   ctx.stroke();
 
-  // Road dashed lines
+  // Moving lane lines
   for (let z = 0; z < 1; z += 0.13) {
     let p = (z + roadOffset) % 1;
     let d = roadData(p);
 
-    ctx.fillStyle = "#ffffff";
+    ctx.fillStyle = "white";
     ctx.fillRect(180 - d.half / 3, d.y, 3 + p * 3, 8 + p * 12);
     ctx.fillRect(180 + d.half / 3, d.y, 3 + p * 3, 8 + p * 12);
   }
@@ -318,19 +315,8 @@ function drawRoad() {
 
     ctx.fillStyle = i % 2 ? "#b7c4d1" : "#d6a77b";
 
-    ctx.fillRect(
-      180 - d.half - size - 8,
-      d.y - size,
-      size,
-      size
-    );
-
-    ctx.fillRect(
-      180 + d.half + 8,
-      d.y - size,
-      size,
-      size
-    );
+    ctx.fillRect(180 - d.half - size - 8, d.y - size, size, size);
+    ctx.fillRect(180 + d.half + 8, d.y - size, size, size);
 
     ctx.fillStyle = "#fff1a8";
     ctx.fillRect(180 - d.half - size, d.y - size + 8, 5, 6);
@@ -338,20 +324,17 @@ function drawRoad() {
   }
 }
 
-// DRAW PLAYER CAR
+// PLAYER CAR
 function drawPlayer() {
   const x = 180 + lane * 75;
   const y = 510;
 
-  // Shadow
   ctx.fillStyle = "rgba(0,0,0,0.3)";
   ctx.beginPath();
   ctx.ellipse(x, y + 28, 34, 10, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Car body
   ctx.fillStyle = "#e52d36";
-
   ctx.beginPath();
   ctx.moveTo(x - 23, y + 25);
   ctx.lineTo(x - 20, y - 12);
@@ -362,34 +345,35 @@ function drawPlayer() {
   ctx.closePath();
   ctx.fill();
 
-  // Windows
   ctx.fillStyle = "#9be5ff";
   ctx.fillRect(x - 13, y - 23, 26, 15);
 
-  // Wheels
   ctx.fillStyle = "#111";
   ctx.fillRect(x - 27, y - 8, 7, 17);
   ctx.fillRect(x + 20, y - 8, 7, 17);
   ctx.fillRect(x - 27, y + 14, 7, 14);
   ctx.fillRect(x + 20, y + 14, 7, 14);
 
-  // Lights
   ctx.fillStyle = "#fff7a3";
   ctx.fillRect(x - 18, y + 17, 7, 5);
   ctx.fillRect(x + 11, y + 17, 7, 5);
 
-  // Nitro flames
   if (nitro) {
     ctx.fillStyle = "#36d8ff";
     ctx.beginPath();
     ctx.moveTo(x - 10, y + 26);
-    ctx.lineTo(x, y + 55 + Math.random() * 10);
+    ctx.lineTo(x, y + 60);
     ctx.lineTo(x + 10, y + 26);
     ctx.fill();
   }
+
+  // Selected car emoji
+  ctx.font = "25px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText(car, x, y - 40);
 }
 
-// OBJECT DRAWING
+// OBJECTS
 function drawObjects() {
   objects.forEach(obj => {
     const d = roadData(obj.z);
@@ -401,7 +385,6 @@ function drawObjects() {
     ctx.textBaseline = "middle";
 
     let emoji = "🚙";
-
     if (obj.type === "coin") emoji = "🪙";
     if (obj.type === "fuel") emoji = "⛽";
 
@@ -409,7 +392,7 @@ function drawObjects() {
   });
 }
 
-// MAIN DRAW
+// DRAW
 function draw() {
   drawRoad();
   drawObjects();
@@ -418,6 +401,7 @@ function draw() {
   if (!running) {
     ctx.fillStyle = "rgba(0,0,0,0.35)";
     ctx.fillRect(0, 0, 360, 600);
+
     ctx.fillStyle = "white";
     ctx.font = "bold 22px Arial";
     ctx.textAlign = "center";
@@ -435,13 +419,12 @@ function move(direction) {
   beep(320, 0.07, 0.04);
 }
 
-// KEYBOARD
 document.addEventListener("keydown", e => {
   if (e.key === "ArrowLeft") move(-1);
   if (e.key === "ArrowRight") move(1);
 });
 
-// START GAME
+// START
 function startGame() {
   score = 0;
   lives = 3;
@@ -470,10 +453,9 @@ function startGame() {
   requestAnimationFrame(gameLoop);
 }
 
-// SPAWN OBJECTS
+// SPAWN
 function spawnObject() {
   const chance = Math.random();
-
   let type = "car";
 
   if (chance < 0.25) type = "coin";
@@ -496,7 +478,6 @@ nitroBtn.addEventListener("pointerdown", e => {
 
   nitro = true;
   nitroTime = 0;
-
   beep(850, 0.3, 0.1);
 });
 
@@ -508,7 +489,7 @@ nitroBtn.addEventListener("pointerup", stopNitro);
 nitroBtn.addEventListener("pointerleave", stopNitro);
 nitroBtn.addEventListener("pointercancel", stopNitro);
 
-// UPDATE GAME
+// GAME LOOP
 function gameLoop(time) {
   if (!running) return;
 
@@ -523,20 +504,17 @@ function gameLoop(time) {
     currentSpeed *= 1.8;
     nitroTime += dt;
 
-    if (nitroTime > 3) {
-      nitro = false;
-    }
+    if (nitroTime > 3) nitro = false;
   }
 
   roadOffset += currentSpeed * dt * 1.5;
   roadOffset %= 1;
 
-  // Fuel decreases slowly
   fuel -= dt * 1.5;
 
   if (fuel <= 0) {
     fuel = 0;
-    endGame("⛽ पेट्रोल खत्म! Game Over!");
+    endGame("⛽ पेट्रोल खत्म!");
     return;
   }
 
@@ -558,7 +536,6 @@ function gameLoop(time) {
         coinsBox.innerText = coins;
         score += 5;
         beep(750, 0.12, 0.07);
-
         objects.splice(i, 1);
         continue;
       }
@@ -567,7 +544,6 @@ function gameLoop(time) {
         fuel = Math.min(100, fuel + 30);
         fuelBox.innerText = Math.floor(fuel);
         beep(500, 0.2, 0.08);
-
         objects.splice(i, 1);
         continue;
       }
@@ -575,13 +551,11 @@ function gameLoop(time) {
       if (obj.type === "car") {
         lives--;
         livesBox.innerText = lives;
-
         beep(100, 0.4, 0.12);
-
         objects.splice(i, 1);
 
         if (lives <= 0) {
-          endGame("💥 तीनों Lives खत्म! Game Over!");
+          endGame("💥 तीनों Lives खत्म!");
           return;
         }
 
@@ -595,7 +569,6 @@ function gameLoop(time) {
     }
   }
 
-  // Score and speed
   score += dt * 2;
   scoreBox.innerText = Math.floor(score);
 
@@ -608,7 +581,7 @@ function gameLoop(time) {
     } catch(e) {}
   }
 
-  if (Math.floor(score) % 20 === 0 && score > 0) {
+  if (Math.floor(score) > 0 && Math.floor(score) % 20 === 0) {
     speed = Math.min(0.65, speed + dt * 0.005);
   }
 
@@ -626,7 +599,7 @@ function endGame(text) {
   draw();
 }
 
-// FIRST SCREEN
+// INITIAL SCREEN
 draw();
 </script>
 
