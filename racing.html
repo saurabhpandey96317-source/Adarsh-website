@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Adarsh Racing 5.0</title>
+<title>Adarsh Racing 5.1</title>
 <style>
 *{box-sizing:border-box}
 body{
@@ -27,12 +27,9 @@ h3{margin:10px}
 .car{width:57px;border:2px solid orange}
 .selected{background:orange}
 canvas{
- display:block;
- width:min(300px,94vw);
- height:auto;
- aspect-ratio:3/5;
- margin:10px auto;
- border:3px solid white;
+ display:block;width:min(300px,94vw);
+ height:auto;aspect-ratio:3/5;
+ margin:10px auto;border:3px solid white;
  border-radius:12px;
 }
 #msg{font-size:14px;min-height:20px;color:#ffe082;margin:7px}
@@ -44,7 +41,7 @@ canvas{
 </head>
 <body>
 
-<h1>🚔 ADARSH RACING 5.0</h1>
+<h1>🚔 ADARSH RACING 5.1</h1>
 
 <div class="stats">
 <span>🏆 Score: <b id="score">0</b></span>
@@ -87,10 +84,10 @@ let score=0,coins=0,lives=3,fuel=100,best=0;
 let running=false,over=false,nitro=0;
 let move=0,spawn=0,items=[],policeY=460;
 let soundOn=true,audio=null,last=0;
-let policeHitTimer=0;
+let hitCooldown=0;
 
 try{
- best=+(localStorage.getItem("adarshBest5")||0);
+ best=+(localStorage.getItem("adarshBest51")||0);
 }catch(e){}
 el("best").textContent=best;
 
@@ -137,7 +134,7 @@ function drawRoad(){
  x.fillStyle=sky;
  x.fillRect(0,0,360,600);
 
- // City buildings
+ // City
  for(let i=0;i<11;i++){
   let bx=i*38-5;
   let bh=90+(i*37%100);
@@ -195,7 +192,7 @@ function draw(){
   x.fillText(emoji,pos(o.lane,o.y),o.y);
  }
 
- // Police car
+ // Police car follows behind
  if(running){
   x.font="38px Arial";
   x.textAlign="center";
@@ -239,9 +236,13 @@ function spawnItem(){
 }
 
 function crash(){
+ if(hitCooldown>0)return;
+
+ hitCooldown=60;
  lives--;
  beep(100,.3);
- el("msg").textContent="💥 Crash! Ek life kam hui.";
+ el("msg").textContent="💥 Takkar hui! Ek Life kam hui.";
+
  if(lives<=0)end();
 }
 
@@ -262,11 +263,12 @@ function startGame(){
  items=[];
  spawn=0;
  policeY=460;
- policeHitTimer=0;
+ hitCooldown=0;
  running=true;
  over=false;
  last=0;
- el("msg").textContent="🚔 Police tumhara peecha kar rahi hai!";
+
+ el("msg").textContent="🚔 Police tumhare peeche hai!";
  ui();
  beep(650);
  requestAnimationFrame(loop);
@@ -280,14 +282,15 @@ function loop(t){
  last=t;
 
  let speed=nitro>0?5.5:3;
- move=(move+speed*dt)%260;
 
+ move=(move+speed*dt)%260;
  score+=.12*dt*(nitro>0?2:1);
  fuel-=.018*dt*(nitro>0?2.2:1);
 
  if(nitro>0)nitro=Math.max(0,nitro-dt);
+ if(hitCooldown>0)hitCooldown-=dt;
 
- // Police follows behind
+ // Police follows, but does not cause automatic damage
  policeY=460+Math.sin(t/300)*13;
 
  // Spawn traffic
@@ -297,13 +300,15 @@ function loop(t){
   spawn=0;
  }
 
- // Move traffic
+ // Move objects and detect collisions
  for(let i=items.length-1;i>=0;i--){
   let o=items[i];
   o.y+=speed*dt;
 
   if(o.y>535&&o.y<590&&o.lane===lane){
-   if(o.type==="obstacle")crash();
+   if(o.type==="obstacle"){
+    crash();
+   }
 
    if(o.type==="coin"){
     coins++;
@@ -323,20 +328,10 @@ function loop(t){
   if(o.y>620)items.splice(i,1);
  }
 
- // Police chase danger
- policeHitTimer+=dt;
- if(policeHitTimer>500){
-  policeHitTimer=0;
-  if(Math.random()<.45){
-   crash();
-   el("msg").textContent="🚔 Police ne pakad liya! Bachkar niklo!";
-  }
- }
-
  if(score>best){
   best=Math.floor(score);
   try{
-   localStorage.setItem("adarshBest5",best);
+   localStorage.setItem("adarshBest51",best);
   }catch(e){}
  }
 
@@ -386,9 +381,11 @@ el("sound").onclick=()=>{
 document.querySelectorAll(".car").forEach(b=>{
  b.onclick=()=>{
   if(running)return;
+
   document.querySelectorAll(".car").forEach(a=>{
    a.classList.remove("selected");
   });
+
   b.classList.add("selected");
   car=b.dataset.car;
   draw();
