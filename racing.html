@@ -4,38 +4,51 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Adarsh Police Chase</title>
+<title>Adarsh Police Chase 7.0</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#101820;color:white;font-family:Arial;text-align:center;overflow:hidden}
+body{margin:0;background:#101820;color:white;font-family:Arial;text-align:center;overflow-x:hidden}
 h2{margin:8px;font-size:21px}
-#stats{display:flex;justify-content:space-around;flex-wrap:wrap;gap:5px;margin:7px;font-size:14px}
-canvas{display:block;margin:auto;background:#333;width:min(300px,94vw);height:auto;max-height:65vh;border:3px solid white;border-radius:10px}
-.controls{display:flex;justify-content:center;gap:12px;margin:9px}
-button{border:0;border-radius:10px;padding:12px 20px;font-size:18px;font-weight:bold;background:#ffcc00;color:#111}
+#stats{display:flex;justify-content:space-around;flex-wrap:wrap;gap:6px;margin:7px;font-size:14px}
+#mission{background:#263746;padding:8px;margin:7px auto;border-radius:9px;width:94%;max-width:330px;font-size:14px}
+canvas{display:block;margin:auto;background:#333;width:min(300px,94vw);height:auto;max-height:62vh;border:3px solid white;border-radius:10px}
+.controls{display:flex;justify-content:center;gap:10px;margin:9px}
+button{border:0;border-radius:10px;padding:12px 16px;font-size:17px;font-weight:bold;background:#ffcc00;color:#111}
 #nitro{background:#00c8ff}
 #start{background:#35db65}
-#msg{font-size:15px;min-height:20px}
+#msg{font-size:14px;min-height:20px;margin:5px}
 </style>
 </head>
 <body>
-<h2>🚓 ADARSH POLICE CHASE 🏎️</h2>
+
+<h2>🚓 ADARSH POLICE CHASE 7.0</h2>
+
 <div id="stats">
 <span id="lives">❤️❤️❤️</span>
+<span>Level: <b id="level">1</b></span>
 <span>Score: <b id="score">0</b></span>
 <span>🪙 <b id="coins">0</b></span>
 <span>🏆 <b id="high">0</b></span>
 </div>
 
+<div id="mission">
+🎯 Mission: 200 Score + 3 Coins
+<br>
+<small id="progress">Score: 0/200 | Coins: 0/3</small>
+</div>
+
 <canvas id="game" width="300" height="500"></canvas>
-<div id="msg">Police se bachkar bhaago!</div>
+
+<div id="msg">Police se bachkar missions complete karo!</div>
+
 <div class="controls">
 <button onclick="move(-1)">⬅️ LEFT</button>
 <button id="nitro" onclick="boost()">⚡ NITRO</button>
 <button onclick="move(1)">RIGHT ➡️</button>
 </div>
+
 <button id="start" onclick="startGame()">▶ START GAME</button>
-<div style="font-size:12px;margin:7px">Police se bacho aur coins collect karo!</div>
+<div style="font-size:12px;margin:7px">Swipe bhi kar sakte ho!</div>
 
 <script>
 const c=document.getElementById("game");
@@ -47,13 +60,15 @@ let policeLane=1;
 let traffic=[];
 let coinsList=[];
 let score=0,coins=0,lives=3;
+let level=1,levelCoins=0;
 let running=false,frame=0;
 let policeDistance=0;
 let nitro=0;
-let car="🏎️";
 let high=Number(localStorage.getItem("adarshPoliceHigh")||0);
 
-document.getElementById("high").textContent=high;
+function targetScore(){
+ return level*200;
+}
 
 function updateUI(){
  document.getElementById("lives").textContent=
@@ -61,6 +76,13 @@ function updateUI(){
  document.getElementById("score").textContent=score;
  document.getElementById("coins").textContent=coins;
  document.getElementById("high").textContent=high;
+ document.getElementById("level").textContent=level;
+
+ document.getElementById("mission").innerHTML=
+ "🎯 Level "+level+" Mission: "+targetScore()+" Score + 3 Coins"+
+ "<br><small id='progress'>Score: "+
+ Math.min(score,(level*200))+"/"+targetScore()+
+ " | Coins: "+levelCoins+"/3</small>";
 }
 
 function road(){
@@ -93,25 +115,22 @@ function drawCar(x,y,emoji){
 function draw(){
  road();
 
- // Traffic cars
  traffic.forEach(t=>{
   drawCar(lanes[t.lane],t.y,t.emoji);
  });
 
- // Coins
  coinsList.forEach(o=>{
   ctx.font="23px Arial";
   ctx.textAlign="center";
   ctx.fillText("🪙",lanes[o.lane],o.y);
  });
 
- // Police behind player
+ // Police behind the player
  drawCar(lanes[policeLane],420,"🚓");
 
  // Player
- drawCar(lanes[playerLane],350,car);
+ drawCar(lanes[playerLane],350,"🏎️");
 
- // Nitro effect
  if(nitro>0){
   ctx.fillStyle="#00dfff";
   ctx.font="15px Arial";
@@ -139,30 +158,47 @@ function startGame(){
  score=0;
  coins=0;
  lives=3;
+ level=1;
+ levelCoins=0;
  frame=0;
  policeDistance=0;
  nitro=0;
  running=true;
+
  document.getElementById("start").textContent="🔄 RESTART";
- document.getElementById("msg").textContent="Police tumhara peecha kar rahi hai!";
+ document.getElementById("msg").textContent="🚓 Police tumhara peecha kar rahi hai!";
  updateUI();
  requestAnimationFrame(loop);
 }
 
 function gameOver(message){
  running=false;
- document.getElementById("msg").textContent=message+" Score: "+score;
+ document.getElementById("msg").textContent=
+ message+" Final Score: "+score;
  document.getElementById("start").textContent="▶ PLAY AGAIN";
+}
+
+function nextLevel(){
+ level++;
+ levelCoins=0;
+ policeDistance=0;
+ traffic=[];
+ coinsList=[];
+ document.getElementById("msg").textContent=
+ "🎉 LEVEL "+level+" START! Naya Mission!";
+ updateUI();
 }
 
 function loop(){
  if(!running)return;
  frame++;
 
- let speed=nitro>0?5.5:3;
+ let speed=(3+(level-1)*0.5)+(nitro>0?2.5:0);
  if(nitro>0)nitro--;
 
- if(frame%65===0){
+ let spawnRate=Math.max(35,65-(level-1)*4);
+
+ if(frame%spawnRate===0){
   traffic.push({
    lane:Math.floor(Math.random()*3),
    y:-30,
@@ -170,7 +206,7 @@ function loop(){
   });
  }
 
- if(frame%100===0){
+ if(frame%90===0){
   coinsList.push({
    lane:Math.floor(Math.random()*3),
    y:-20
@@ -194,50 +230,62 @@ function loop(){
   return t.y<530;
  });
 
+ if(!running)return;
+
  // Collect coins
  coinsList=coinsList.filter(o=>{
   if(o.y>325 && o.y<380 && o.lane===playerLane){
    coins++;
+   levelCoins++;
    score+=10;
    updateUI();
+   document.getElementById("msg").textContent="🪙 Coin collected!";
    return false;
   }
   return o.y<530;
  });
 
- // Police chase
- if(frame%45===0){
+ // Police follows player
+ if(frame%30===0){
   policeLane=playerLane;
  }
 
- // Police gradually catches up
- policeDistance+=0.08;
- if(nitro>0)policeDistance-=0.8;
+ // Police chase pressure
+ policeDistance+=0.07+(level-1)*0.01;
+ if(nitro>0)policeDistance-=0.9;
  if(policeDistance<0)policeDistance=0;
 
  if(policeDistance>100){
   gameOver("🚓 POLICE NE PAKAD LIYA!");
+  draw();
+  return;
  }
 
  score++;
+
  if(score>high){
   high=score;
   localStorage.setItem("adarshPoliceHigh",high);
  }
- updateUI();
 
+ // Complete mission
+ if(score>=targetScore() && levelCoins>=3){
+  nextLevel();
+ }
+
+ updateUI();
  draw();
- requestAnimationFrame(loop);
+
+ if(running)requestAnimationFrame(loop);
 }
 
 draw();
 updateUI();
 
-// Keyboard controls
 document.addEventListener("keydown",e=>{
  if(e.key==="ArrowLeft")move(-1);
  if(e.key==="ArrowRight")move(1);
- if(e.key===" " )boost();
+ if(e.key===" ")boost();
 });
 
 // Mobile swipe
