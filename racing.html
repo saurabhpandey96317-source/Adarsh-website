@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Adarsh Racing 5.1</title>
+<title>Adarsh Racing 5.2</title>
 <style>
 *{box-sizing:border-box}
 body{
@@ -37,213 +37,242 @@ canvas{
 .btn{font-size:14px;background:#ffb000;color:#111;font-weight:bold;padding:12px}
 #nitro{background:#00bde8}
 #sound{background:#4b607c;color:white}
+#heartDisplay{color:#ff4545;letter-spacing:2px}
 </style>
 </head>
 <body>
 
-<h1>🚔 ADARSH RACING 5.1</h1>
+<h1>🚔 ADARSH RACING 5.2</h1>
 
 <div class="stats">
-<span>🏆 Score: <b id="score">0</b></span>
-<span>🥇 Best: <b id="best">0</b></span>
-<span>❤️ Lives: <b id="lives">3</b></span>
-<span>⛽ Fuel: <b id="fuel">100</b>%</span>
-<span>🪙 Coins: <b id="coins">0</b></span>
+ <span>🏆 Score: <b id="score">0</b></span>
+ <span>🥇 Best: <b id="best">0</b></span>
+ <span>❤️ <b id="heartDisplay">❤️❤️❤️</b></span>
+ <span>⛽ Fuel: <b id="fuel">100</b>%</span>
+ <span>🪙 Coins: <b id="coins">0</b></span>
 </div>
 
 <h3>🚘 Choose Your Car</h3>
 <div class="cars">
-<button class="car selected" data-car="🏎️">🏎️</button>
-<button class="car" data-car="🚕">🚕</button>
-<button class="car" data-car="🚓">🚓</button>
-<button class="car" data-car="🚑">🚑</button>
+ <button class="car selected" data-car="🏎️">🏎️</button>
+ <button class="car" data-car="🚕">🚕</button>
+ <button class="car" data-car="🚓">🚓</button>
+ <button class="car" data-car="🚑">🚑</button>
 </div>
 
 <canvas id="game" width="360" height="600"></canvas>
 
-<div id="msg">START dabao aur Police se bacho!</div>
+<div id="msg">START dabao aur race shuru karo!</div>
 
 <div class="controls">
-<button class="control" id="left">⬅️</button>
-<button class="control" id="right">➡️</button>
+ <button class="control" id="left">⬅️</button>
+ <button class="control" id="right">➡️</button>
 </div>
 
 <div class="buttons">
-<button class="btn" id="start">▶ START</button>
-<button class="btn" id="nitro">⚡ NITRO</button>
-<button class="btn" id="sound">🔊 SOUND ON</button>
+ <button class="btn" id="start">▶ START</button>
+ <button class="btn" id="nitro">⚡ NITRO</button>
+ <button class="btn" id="sound">🔊 SOUND ON</button>
 </div>
 
 <script>
-const c=document.getElementById("game");
-const x=c.getContext("2d");
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
 const el=id=>document.getElementById(id);
 
-let lane=0,car="🏎️";
+let lane=0;
+let car="🏎️";
 let score=0,coins=0,lives=3,fuel=100,best=0;
 let running=false,over=false,nitro=0;
-let move=0,spawn=0,items=[],policeY=460;
+let roadMove=0,spawn=0,items=[];
+let policeLane=0;
+let policeX=180;
 let soundOn=true,audio=null,last=0;
 let hitCooldown=0;
 
 try{
- best=+(localStorage.getItem("adarshBest51")||0);
+ best=Number(localStorage.getItem("adarshBest52")||0);
 }catch(e){}
-el("best").textContent=best;
 
-function beep(f=400,d=.1){
+function beep(freq=400,duration=.1){
  if(!soundOn)return;
  try{
   audio=audio||new(window.AudioContext||window.webkitAudioContext)();
   if(audio.state==="suspended")audio.resume();
-  let o=audio.createOscillator();
-  let g=audio.createGain();
-  o.frequency.value=f;
-  g.gain.value=.06;
-  o.connect(g);
-  g.connect(audio.destination);
-  o.start();
-  g.gain.exponentialRampToValueAtTime(.001,audio.currentTime+d);
-  o.stop(audio.currentTime+d);
+  const osc=audio.createOscillator();
+  const gain=audio.createGain();
+  osc.frequency.value=freq;
+  gain.gain.value=.06;
+  osc.connect(gain);
+  gain.connect(audio.destination);
+  osc.start();
+  gain.gain.exponentialRampToValueAtTime(.001,audio.currentTime+duration);
+  osc.stop(audio.currentTime+duration);
  }catch(e){}
 }
 
-function ui(){
+function updateUI(){
  el("score").textContent=Math.floor(score);
  el("best").textContent=best;
- el("lives").textContent=lives;
+ el("heartDisplay").textContent="❤️".repeat(lives)+"🖤".repeat(3-lives);
  el("fuel").textContent=Math.floor(fuel);
  el("coins").textContent=coins;
 }
 
 function road(y){
- let z=y/600;
- let h=35+z*145;
- return {l:180-h,r:180+h,h};
+ const z=y/600;
+ const half=35+z*145;
+ return {left:180-half,right:180+half,half};
 }
 
-function pos(l,y){
- let r=road(y);
- return 180+l*r.h*.58;
+function laneX(l,y){
+ const r=road(y);
+ return 180+l*r.half*.58;
 }
 
-function drawRoad(){
- let sky=x.createLinearGradient(0,0,0,350);
+function drawBackground(){
+ const sky=ctx.createLinearGradient(0,0,0,350);
  sky.addColorStop(0,"#34799e");
  sky.addColorStop(1,"#b6d4df");
- x.fillStyle=sky;
- x.fillRect(0,0,360,600);
+ ctx.fillStyle=sky;
+ ctx.fillRect(0,0,360,600);
 
- // City
+ // City buildings
  for(let i=0;i<11;i++){
-  let bx=i*38-5;
-  let bh=90+(i*37%100);
-  x.fillStyle="#394c5e";
-  x.fillRect(bx,340-bh,27,bh);
-  x.fillStyle="#ffe19b";
+  const bx=i*38-5;
+  const bh=90+(i*37%100);
+  ctx.fillStyle="#394c5e";
+  ctx.fillRect(bx,340-bh,27,bh);
+  ctx.fillStyle="#ffe19b";
   for(let yy=350-bh+12;yy<330;yy+=22){
-   x.fillRect(bx+7,yy,6,9);
+   ctx.fillRect(bx+7,yy,6,9);
+   ctx.fillRect(bx+17,yy,5,9);
   }
  }
 
- // Green roadside
- x.fillStyle="#286232";
- x.fillRect(0,340,360,260);
+ // Grass
+ ctx.fillStyle="#286232";
+ ctx.fillRect(0,340,360,260);
 
  // Road
- let a=road(340),b=road(600);
- x.fillStyle="#292c32";
- x.beginPath();
- x.moveTo(a.l,340);
- x.lineTo(a.r,340);
- x.lineTo(b.r,600);
- x.lineTo(b.l,600);
- x.fill();
+ const a=road(340),b=road(600);
+ ctx.fillStyle="#292c32";
+ ctx.beginPath();
+ ctx.moveTo(a.left,340);
+ ctx.lineTo(a.right,340);
+ ctx.lineTo(b.right,600);
+ ctx.lineTo(b.left,600);
+ ctx.closePath();
+ ctx.fill();
 
- x.strokeStyle="white";
- x.lineWidth=4;
- x.beginPath();
- x.moveTo(a.l,340);
- x.lineTo(b.l,600);
- x.moveTo(a.r,340);
- x.lineTo(b.r,600);
- x.stroke();
+ // Road edges
+ ctx.strokeStyle="white";
+ ctx.lineWidth=4;
+ ctx.beginPath();
+ ctx.moveTo(a.left,340);
+ ctx.lineTo(b.left,600);
+ ctx.moveTo(a.right,340);
+ ctx.lineTo(b.right,600);
+ ctx.stroke();
 
  // Lane markings
- x.fillStyle="white";
+ ctx.fillStyle="white";
  for(let i=0;i<8;i++){
-  let y=340+(i*39+move)%260;
-  let r=road(y);
+  const y=340+(i*39+roadMove)%260;
+  const r=road(y);
   for(let j=1;j<=2;j++){
-   x.fillRect(r.l+r.h*2*j/3-2,y,4,15);
+   ctx.fillRect(r.left+r.half*2*j/3-2,y,4,15);
   }
+ }
+}
+
+function drawObjects(){
+ for(const o of items){
+  ctx.textAlign="center";
+  ctx.font="30px Arial";
+  const emoji=o.type==="coin"?"🪙":
+   o.type==="fuel"?"⛽":"🚙";
+  ctx.fillText(emoji,laneX(o.lane,o.y),o.y);
+ }
+}
+
+function drawPolice(){
+ // Police is below the player: visually behind your car
+ const y=565;
+ const x=laneX(policeLane,y);
+
+ ctx.textAlign="center";
+ ctx.font="37px Arial";
+ ctx.fillText("🚔",x,y);
+
+ // Flashing police lights
+ ctx.fillStyle="#ff3333";
+ ctx.fillRect(x-13,y-27,10,4);
+ ctx.fillStyle="#33aaff";
+ ctx.fillRect(x+3,y-27,10,4);
+}
+
+function drawPlayer(){
+ const y=500;
+ const x=laneX(lane,y);
+
+ ctx.textAlign="center";
+ ctx.font="43px Arial";
+ ctx.fillText(car,x,y);
+
+ if(nitro>0){
+  ctx.font="22px Arial";
+  ctx.fillText("🔥",x,y+22);
  }
 }
 
 function draw(){
- drawRoad();
+ drawBackground();
+ drawObjects();
 
- // Traffic, coins and fuel
- for(let o of items){
-  x.textAlign="center";
-  x.font="30px Arial";
-  let emoji=o.type==="coin"?"🪙":
-   o.type==="fuel"?"⛽":"🚙";
-  x.fillText(emoji,pos(o.lane,o.y),o.y);
- }
-
- // Police car follows behind
  if(running){
-  x.font="38px Arial";
-  x.textAlign="center";
-  x.fillText("🚔",pos(lane,policeY),policeY);
-
-  x.fillStyle="#ff3333";
-  x.fillRect(pos(lane,policeY)-12,policeY-28,10,4);
-  x.fillStyle="#33aaff";
-  x.fillRect(pos(lane,policeY)+2,policeY-28,10,4);
- }
-
- // Player car
- x.font="42px Arial";
- x.textAlign="center";
- x.fillText(car,pos(lane,575),578);
-
- if(nitro>0){
-  x.font="22px Arial";
-  x.fillText("🔥",pos(lane,575),600);
- }
-
- if(!running){
-  x.fillStyle="rgba(0,0,0,.4)";
-  x.fillRect(0,0,360,600);
-  x.fillStyle="white";
-  x.font="bold 25px Arial";
-  x.fillText(over?"GAME OVER":"POLICE CHASE",180,290);
-  x.font="16px Arial";
-  x.fillText("START BUTTON DABAO",180,325);
+  drawPolice();
+  drawPlayer();
+ }else{
+  drawPlayer();
+  ctx.fillStyle="rgba(0,0,0,.4)";
+  ctx.fillRect(0,0,360,600);
+  ctx.fillStyle="white";
+  ctx.textAlign="center";
+  ctx.font="bold 25px Arial";
+  ctx.fillText(over?"GAME OVER":"POLICE CHASE",180,290);
+  ctx.font="16px Arial";
+  ctx.fillText("START BUTTON DABAO",180,325);
  }
 }
 
 function spawnItem(){
- let t=Math.random();
- let type=t<.48?"obstacle":t<.76?"coin":"fuel";
+ const r=Math.random();
+ const type=r<.48?"obstacle":r<.76?"coin":"fuel";
+
+ // Avoid spawning every object in player's lane
+ let newLane=Math.floor(Math.random()*3)-1;
+
  items.push({
-  lane:Math.floor(Math.random()*3)-1,
+  lane:newLane,
   y:340,
-  type
+  type:type
  });
 }
 
 function crash(){
- if(hitCooldown>0)return;
+ if(hitCooldown>0||!running)return;
 
- hitCooldown=60;
+ hitCooldown=65;
  lives--;
  beep(100,.3);
  el("msg").textContent="💥 Takkar hui! Ek Life kam hui.";
 
- if(lives<=0)end();
+ if(lives<=0){
+  lives=0;
+  end();
+ }
+ updateUI();
 }
 
 function end(){
@@ -251,6 +280,7 @@ function end(){
  over=true;
  el("msg").textContent="🏁 Game Over! Score: "+Math.floor(score);
  beep(180,.5);
+ draw();
 }
 
 function startGame(){
@@ -259,53 +289,58 @@ function startGame(){
  lives=3;
  fuel=100;
  lane=0;
+ policeLane=0;
  nitro=0;
  items=[];
  spawn=0;
- policeY=460;
+ roadMove=0;
  hitCooldown=0;
+ policeX=180;
+
  running=true;
  over=false;
  last=0;
 
  el("msg").textContent="🚔 Police tumhare peeche hai!";
- ui();
+ updateUI();
  beep(650);
  requestAnimationFrame(loop);
 }
 
-function loop(t){
+function loop(time){
  if(!running)return;
 
- if(!last)last=t;
- let dt=Math.min((t-last)/16.67,2);
- last=t;
+ if(!last)last=time;
+ const dt=Math.min((time-last)/16.67,2);
+ last=time;
 
- let speed=nitro>0?5.5:3;
+ const speed=nitro>0?5.5:3;
 
- move=(move+speed*dt)%260;
+ roadMove=(roadMove+speed*dt)%260;
  score+=.12*dt*(nitro>0?2:1);
  fuel-=.018*dt*(nitro>0?2.2:1);
 
  if(nitro>0)nitro=Math.max(0,nitro-dt);
  if(hitCooldown>0)hitCooldown-=dt;
 
- // Police follows, but does not cause automatic damage
- policeY=460+Math.sin(t/300)*13;
+ // Police follows the player's lane gradually
+ policeLane=lane;
+ policeX=laneX(policeLane,565);
 
  // Spawn traffic
  spawn+=dt;
- if(spawn>45){
+ if(spawn>48){
   spawnItem();
   spawn=0;
  }
 
- // Move objects and detect collisions
+ // Move traffic and detect collisions
  for(let i=items.length-1;i>=0;i--){
-  let o=items[i];
+  const o=items[i];
   o.y+=speed*dt;
 
-  if(o.y>535&&o.y<590&&o.lane===lane){
+  // Player car is at y=500
+  if(o.y>475&&o.y<515&&o.lane===lane){
    if(o.type==="obstacle"){
     crash();
    }
@@ -313,12 +348,12 @@ function loop(t){
    if(o.type==="coin"){
     coins++;
     score+=10;
-    beep(850);
+    beep(850,.08);
    }
 
    if(o.type==="fuel"){
     fuel=Math.min(100,fuel+22);
-    beep(500);
+    beep(500,.12);
    }
 
    items.splice(i,1);
@@ -328,10 +363,11 @@ function loop(t){
   if(o.y>620)items.splice(i,1);
  }
 
+ // High score
  if(score>best){
   best=Math.floor(score);
   try{
-   localStorage.setItem("adarshBest51",best);
+   localStorage.setItem("adarshBest52",best);
   }catch(e){}
  }
 
@@ -340,27 +376,27 @@ function loop(t){
   end();
  }
 
- ui();
+ updateUI();
  draw();
 
  if(running)requestAnimationFrame(loop);
 }
 
-function moveLane(d){
+function moveLane(direction){
  if(!running)return;
- lane=Math.max(-1,Math.min(1,lane+d));
+ lane=Math.max(-1,Math.min(1,lane+direction));
  beep(300,.05);
 }
 
-el("left").onpointerdown=e=>{
+el("left").addEventListener("pointerdown",e=>{
  e.preventDefault();
  moveLane(-1);
-};
+});
 
-el("right").onpointerdown=e=>{
+el("right").addEventListener("pointerdown",e=>{
  e.preventDefault();
  moveLane(1);
-};
+});
 
 el("start").onclick=startGame;
 
@@ -369,6 +405,7 @@ el("nitro").onclick=()=>{
   nitro=100;
   fuel-=5;
   beep(950,.2);
+  updateUI();
  }
 };
 
@@ -378,27 +415,27 @@ el("sound").onclick=()=>{
  if(soundOn)beep(500);
 };
 
-document.querySelectorAll(".car").forEach(b=>{
- b.onclick=()=>{
+document.querySelectorAll(".car").forEach(button=>{
+ button.onclick=()=>{
   if(running)return;
 
-  document.querySelectorAll(".car").forEach(a=>{
-   a.classList.remove("selected");
+  document.querySelectorAll(".car").forEach(b=>{
+   b.classList.remove("selected");
   });
 
-  b.classList.add("selected");
-  car=b.dataset.car;
+  button.classList.add("selected");
+  car=button.dataset.car;
   draw();
  };
 });
 
-document.onkeydown=e=>{
+document.addEventListener("keydown",e=>{
  if(e.key==="ArrowLeft")moveLane(-1);
  if(e.key==="ArrowRight")moveLane(1);
-};
+});
 
+updateUI();
 draw();
-ui();
 </script>
 </body>
 </html>
